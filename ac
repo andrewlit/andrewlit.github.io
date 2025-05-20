@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AC Energy Optimizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .input-label { display: block; margin-bottom: 0.25rem; font-size: 0.875rem; font-weight: 500; color: #4A5568; }
+        .input-field { width: 100%; padding: 0.5rem; border: 1px solid #CBD5E0; border-radius: 0.375rem; font-size: 0.875rem; transition: border-color 0.15s ease-in-out; }
+        .input-field:focus { border-color: #4299E1; outline: none; box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5); }
+        .btn { padding: 0.6rem 1rem; border-radius: 0.375rem; font-weight: 600; transition: background-color 0.15s ease-in-out; cursor: pointer; }
+        .btn-primary { background-color: #4299E1; color: white; }
+        .btn-primary:hover { background-color: #2B6CB0; }
+        #plotCanvasContainer { position: relative; /* For annotation positioning */ }
+        #plotCanvas { border: 1px solid #D1D5DB; cursor: crosshair; background-color: #f9fafb; }
+        #annotation { position: absolute; background-color: rgba(255, 255, 230, 0.95); border: 1px solid #ccc; padding: 8px; border-radius: 4px; font-size: 0.8rem; pointer-events: none; display: none; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .legend-item { display: flex; align-items: center; margin-bottom: 4px; font-size: 0.8rem; }
+        .legend-color-box { width: 16px; height: 16px; margin-right: 8px; border: 1px solid #ccc; }
+        #colorBarDisplay { display: flex; flex-direction: column; align-items: center; }
+        #colorBarGradient { height: 100%; width: 20px; /* Fixed width for gradient bar */ border: 1px solid #A0AEC0; }
+        #colorBarLabelsContainer { height: 100%; display: flex; flex-direction: column; justify-content: space-between; margin-left: 5px; }
+        #strategyResult strong.strategy-title { font-weight: 600; color: #2D3748; } /* Tailwind gray-800 */
+        #strategyResult .best-strategy { font-weight: 700; color: #2C5282; } /* Tailwind blue-700 */
+
+
+    </style>
+</head>
+<body class="bg-gray-100 p-4 md:p-8">
+    <div class="container mx-auto max-w-6xl bg-white p-6 rounded-lg shadow-xl">
+        <h1 class="text-2xl md:text-3xl font-bold text-center text-gray-700 mb-6">Air Conditioner Energy Optimizer</h1>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div class="bg-gray-50 p-4 rounded-md shadow">
+                <h2 class="text-lg font-semibold text-gray-700 mb-3">Target & AC Settings</h2>
+                <div><label for="targetTemp" class="input-label">Target Temp (°C):</label><input type="number" id="targetTemp" class="input-field" value="22.0" step="0.1"></div>
+                <div class="mt-3"><label for="targetRH" class="input-label">Target RH (0.0-1.0):</label><input type="number" id="targetRH" class="input-field" value="0.50" step="0.01" min="0" max="1"></div>
+                <div class="mt-3"><label for="seer" class="input-label">SEER Rating:</label><input type="number" id="seer" class="input-field" value="14.0" step="0.1" min="1"></div>
+                <button id="updateMainPlotBtn" class="btn btn-primary w-full mt-4">Update Main Plot</button>
+            </div>
+
+            <div class="bg-gray-50 p-4 rounded-md shadow">
+                <h2 class="text-lg font-semibold text-gray-700 mb-3">Current Conditions</h2>
+                <div><label for="indoorTemp" class="input-label">Indoor Temp (°C):</label><input type="number" id="indoorTemp" class="input-field" value="26.0" step="0.1"></div>
+                <div class="mt-3"><label for="indoorRH" class="input-label">Indoor RH (0.0-1.0):</label><input type="number" id="indoorRH" class="input-field" value="0.60" step="0.01" min="0" max="1"></div>
+                <div class="mt-3"><label for="outdoorTemp" class="input-label">Outdoor Temp (°C):</label><input type="number" id="outdoorTemp" class="input-field" value="23.0" step="0.1"></div>
+                <div class="mt-3"><label for="outdoorRH" class="input-label">Outdoor RH (0.0-1.0):</label><input type="number" id="outdoorRH" class="input-field" value="0.75" step="0.01" min="0" max="1"></div>
+            </div>
+            
+            <div class="bg-gray-50 p-4 rounded-md shadow flex flex-col">
+                <h2 class="text-lg font-semibold text-gray-700 mb-3">Optimal Strategy</h2>
+                <button id="findStrategyBtn" class="btn btn-primary w-full mb-3">Find Optimal Strategy</button>
+                <div id="strategyResult" class="text-xs p-3 bg-yellow-50 border border-yellow-200 rounded-md flex-grow overflow-auto h-32 md:h-auto leading-relaxed">Click "Find Optimal Strategy" for analysis.</div>
+            </div>
+        </div>
+
+        <div class="flex flex-col md:flex-row gap-4 items-start mt-6">
+            <div id="plotCanvasContainer" class="relative flex-grow w-full md:w-auto">
+                <canvas id="plotCanvas"></canvas>
+                <div id="annotation"></div>
+            </div>
+            <div id="colorBarContainer" class="w-full md:w-auto mt-4 md:mt-0 p-2 bg-gray-50 rounded-md shadow flex flex-col items-center md:items-start" style="min-width: 100px;">
+                <h3 class="text-sm font-semibold mb-2 text-center w-full">Energy (Wh/kg)</h3>
+                <div class="flex items-stretch h-48 md:h-64"> 
+                    <div id="colorBarGradient"></div>
+                    <div id="colorBarLabelsContainer" class="text-xs">
+                        {/* Labels will be populated by JS */}
+                    </div>
+                </div>
+            </div>
+            <div id="strategyLegend" class="w-full md:w-48 mt-4 md:mt-0 p-2 bg-gray-50 rounded-md shadow">
+                <h3 class="text-sm font-semibold mb-2 text-center">Strategy Points</h3>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Constants & Global State ---
+        const KJ_TO_BTU = 0.947817;
+        const P_ATM = 101325; 
+
+        let globalUserInputs = {};
+        let electricalEnergyGrid = []; 
+        
+        let pinnedLines = []; 
+        let strategyPoints = []; 
+
+        const canvas = document.getElementById('plotCanvas');
+        const ctx = canvas.getContext('2d');
+        const annotationDiv = document.getElementById('annotation');
+        const canvasContainer = document.getElementById('plotCanvasContainer');
+
+
+        // Plot dimensions and grid settings
+        const canvasWidth = 600; 
+        const canvasHeight = 480; 
+
+        const marginTop = 40, marginRight = 30, marginBottom = 60, marginLeft = 70; 
+        const plotWidth = canvasWidth - marginLeft - marginRight;    
+        const plotHeight = canvasHeight - marginTop - marginBottom;  
+
+        const tempMin = 18, tempMax = 30;
+        const rhMin = 0.30, rhMax = 0.95;
+
+        const tempSteps = (tempMax - tempMin) * 5; 
+        const rhSteps = Math.round((rhMax - rhMin) * 50); 
+
+        const cellWidth = plotWidth / tempSteps;
+        const cellHeight = plotHeight / rhSteps;
+
+        // --- Psychrometric Functions ---
+        function getSaturationVaporPressure(T_c) { return 610.78 * Math.exp((17.27 * T_c) / (T_c + 237.3)); }
+        function getHumidityRatio(T_c, RH_frac) {
+            const Psat = getSaturationVaporPressure(T_c);
+            let Pw = RH_frac * Psat; Pw = Math.min(Pw, P_ATM - 1.0);
+            const W = 0.62198 * Pw / (P_ATM - Pw); return Math.max(W, 0);
+        }
+        function getEnthalpy(T_c, W) { return (1.006 * T_c) + W * (2501 + 1.86 * T_c); }
+        function getElectricalEnergyWhPerKg(h_initial_kj_per_kg, h_target_kj_per_kg, seer) {
+            if (seer <= 0) return NaN;
+            const thermal_kj = Math.max(0, h_initial_kj_per_kg - h_target_kj_per_kg);
+            return (thermal_kj * KJ_TO_BTU) / seer;
+        }
+        
+        function readUserInputs() {
+            globalUserInputs = {
+                T_target_c: parseFloat(document.getElementById('targetTemp').value),
+                RH_target_frac: parseFloat(document.getElementById('targetRH').value),
+                SEER_rating: parseFloat(document.getElementById('seer').value),
+                T_indoor_c: parseFloat(document.getElementById('indoorTemp').value),
+                RH_indoor_frac: parseFloat(document.getElementById('indoorRH').value),
+                T_outdoor_c: parseFloat(document.getElementById('outdoorTemp').value),
+                RH_outdoor_frac: parseFloat(document.getElementById('outdoorRH').value),
+            };
+            if (isNaN(globalUserInputs.SEER_rating) || globalUserInputs.SEER_rating <= 0) globalUserInputs.SEER_rating = 1;
+            Object.keys(globalUserInputs).forEach(key => {
+                if (isNaN(globalUserInputs[key])) {
+                    alert(`Invalid input for ${key}. Using default or previous.`);
+                    globalUserInputs[key] = key.includes("RH") ? 0.5 : (key.includes("SEER") ? 14 : 20) ;
+                }
+            });
+        }
+
+        function drawAxes() {
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight); 
+            ctx.fillStyle = '#374151'; 
+            ctx.strokeStyle = '#9CA3AF'; 
+            ctx.lineWidth = 1;
+            ctx.font = '10px Inter';
+
+            ctx.beginPath(); ctx.moveTo(marginLeft, marginTop + plotHeight);
+            ctx.lineTo(marginLeft + plotWidth, marginTop + plotHeight); ctx.stroke();
+            const numTempTicks = 6;
+            for (let i = 0; i <= numTempTicks; i++) {
+                const temp = tempMin + i * (tempMax - tempMin) / numTempTicks;
+                const x = marginLeft + i * (plotWidth / numTempTicks);
+                ctx.moveTo(x, marginTop + plotHeight); ctx.lineTo(x, marginTop + plotHeight + 5); ctx.stroke();
+                ctx.textAlign = 'center'; ctx.fillText(temp.toFixed(1), x, marginTop + plotHeight + 15);
+            }
+            ctx.textAlign = 'center'; ctx.fillText('Initial Air Temperature (°C)', marginLeft + plotWidth / 2, marginTop + plotHeight + 35);
+
+            ctx.beginPath(); ctx.moveTo(marginLeft, marginTop);
+            ctx.lineTo(marginLeft, marginTop + plotHeight); ctx.stroke();
+            const numRHTicks = 5;
+            for (let i = 0; i <= numRHTicks; i++) {
+                const rh = rhMax - i * (rhMax - rhMin) / numRHTicks; 
+                const y = marginTop + i * (plotHeight / numRHTicks);
+                ctx.moveTo(marginLeft, y); ctx.lineTo(marginLeft - 5, y); ctx.stroke();
+                ctx.textAlign = 'right'; ctx.fillText((rh * 100).toFixed(0) + '%', marginLeft - 10, y + 3);
+            }
+            ctx.save(); ctx.translate(marginLeft - 45, marginTop + plotHeight / 2);
+            ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center';
+            ctx.fillText('Initial Relative Humidity (%)', 0, 0); ctx.restore();
+        }
+
+        function calculateAndDrawMainPlot() {
+            readUserInputs();
+            electricalEnergyGrid = [];
+            let minEnergy = Infinity, maxEnergy = -Infinity;
+
+            const W_target = getHumidityRatio(globalUserInputs.T_target_c, globalUserInputs.RH_target_frac);
+            const h_target_kj = getEnthalpy(globalUserInputs.T_target_c, W_target);
+
+            for (let i = 0; i < rhSteps; i++) { 
+                const rh_frac = rhMax - i * (rhMax - rhMin) / (rhSteps - 1); 
+                electricalEnergyGrid[i] = [];
+                for (let j = 0; j < tempSteps; j++) { 
+                    const temp_c = tempMin + j * (tempMax - tempMin) / (tempSteps - 1);
+                    
+                    const W_initial = getHumidityRatio(temp_c, rh_frac);
+                    const h_initial_kj = getEnthalpy(temp_c, W_initial);
+                    const energy_wh_kg = getElectricalEnergyWhPerKg(h_initial_kj, h_target_kj, globalUserInputs.SEER_rating);
+                    
+                    electricalEnergyGrid[i][j] = energy_wh_kg;
+                    if (!isNaN(energy_wh_kg)) {
+                        minEnergy = Math.min(minEnergy, energy_wh_kg);
+                        maxEnergy = Math.max(maxEnergy, energy_wh_kg);
+                    }
+                }
+            }
+            if (minEnergy === Infinity || maxEnergy === -Infinity || minEnergy === maxEnergy) { 
+                minEnergy = 0; maxEnergy = (maxEnergy === -Infinity || maxEnergy === minEnergy) ? 1 : maxEnergy;
+            }
+
+            drawAxes(); 
+            drawHeatmap(minEnergy, maxEnergy);
+            drawColorBar(minEnergy, maxEnergy);
+            drawPinnedLines(minEnergy, maxEnergy);
+            drawStrategyPoints(); 
+        }
+
+        function getColorForEnergy(energy, minE, maxE) {
+            if (isNaN(energy) || maxE <= minE) return `rgb(220, 220, 245)`; 
+            const ratio = Math.max(0, Math.min(1, (energy - minE) / (maxE - minE)));
+            const r = Math.round(50 + 200 * ratio); 
+            const g = Math.round(50 + 150 * (1-ratio*ratio)); 
+            const b = Math.round(230 * (1 - ratio)); 
+            return `rgb(${r},${g},${b})`;
+        }
+        
+        function drawHeatmap(minE, maxE) {
+            for (let i = 0; i < rhSteps; i++) { 
+                for (let j = 0; j < tempSteps; j++) { 
+                    const energy = electricalEnergyGrid[i][j];
+                    ctx.fillStyle = getColorForEnergy(energy, minE, maxE);
+                    ctx.fillRect(marginLeft + j * cellWidth, marginTop + i * cellHeight, cellWidth, cellHeight);
+                }
+            }
+        }
+
+        function drawColorBar(minE, maxE) {
+            const cbGradientDiv = document.getElementById('colorBarGradient');
+            const cbLabelsContainer = document.getElementById('colorBarLabelsContainer');
+            cbGradientDiv.innerHTML = ''; 
+            cbLabelsContainer.innerHTML = ''; 
+
+            const numSegments = 10; 
+            const segmentHeightPercentage = 100 / numSegments;
+            let gradientStops = [];
+
+            for (let i = 0; i <= numSegments; i++) {
+                const val = minE + (i / numSegments) * (maxE - minE);
+                gradientStops.push(`${getColorForEnergy(val, minE, maxE)} ${i * segmentHeightPercentage}%`);
+            }
+            cbGradientDiv.style.background = `linear-gradient(to top, ${gradientStops.join(', ')})`;
+
+            const maxLabel = document.createElement('span');
+            maxLabel.textContent = maxE.toFixed(1);
+            maxLabel.style.textAlign = 'left';
+            
+            const midLabel = document.createElement('span');
+            midLabel.textContent = ((minE + maxE) / 2).toFixed(1);
+            midLabel.style.textAlign = 'left';
+
+            const minLabel = document.createElement('span');
+            minLabel.textContent = minE.toFixed(1);
+            minLabel.style.textAlign = 'left';
+            
+            cbLabelsContainer.appendChild(maxLabel); 
+            cbLabelsContainer.appendChild(midLabel); 
+            cbLabelsContainer.appendChild(minLabel); 
+        }
+        
+        function drawPinnedLines(minE, maxE, currentHoverEnergy = null) {
+            const linesToDraw = [...pinnedLines];
+            if (currentHoverEnergy !== null && !isNaN(currentHoverEnergy)) {
+                linesToDraw.push({ energyValue: currentHoverEnergy, color: 'rgba(220,50,50,0.7)'}); 
+            }
+
+            linesToDraw.forEach(line => {
+                ctx.fillStyle = line.color || 'rgba(50,50,220,0.3)'; 
+                const tolerance = (maxE - minE) * 0.01 + 0.05; 
+
+                for (let i = 0; i < rhSteps; i++) {
+                    for (let j = 0; j < tempSteps; j++) {
+                        const cellEnergy = electricalEnergyGrid[i][j];
+                        if (!isNaN(cellEnergy) && Math.abs(cellEnergy - line.energyValue) < tolerance) {
+                            ctx.fillRect(marginLeft + j * cellWidth, marginTop + i * cellHeight, cellWidth, cellHeight);
+                        }
+                    }
+                }
+            });
+        }
+        
+        function drawStrategyPoints() {
+            const legendDiv = document.getElementById('strategyLegend');
+            legendDiv.innerHTML = '<h3 class="text-sm font-semibold mb-2 text-center">Strategy Points</h3>'; 
+
+            strategyPoints.forEach(p => {
+                const xPlot = ((p.T - tempMin) / (tempMax - tempMin)) * plotWidth;
+                const yPlot = ((rhMax - (p.RH_percent / 100)) / (rhMax - rhMin)) * plotHeight;
+                
+                const canvasX = marginLeft + xPlot;
+                const canvasY = marginTop + yPlot;
+
+                if (xPlot >= -cellWidth/2 && xPlot <= plotWidth + cellWidth/2 && yPlot >= -cellHeight/2 && yPlot <= plotHeight + cellHeight/2) { 
+                    ctx.beginPath(); ctx.fillStyle = p.color;
+                    if (p.marker === 'circle') ctx.arc(canvasX, canvasY, 5, 0, 2 * Math.PI);
+                    else if (p.marker === 'square') ctx.rect(canvasX - 4, canvasY - 4, 8, 8);
+                    else if (p.marker === 'diamond') {
+                        ctx.moveTo(canvasX, canvasY - 5); ctx.lineTo(canvasX + 5, canvasY);
+                        ctx.lineTo(canvasX, canvasY + 5); ctx.lineTo(canvasX - 5, canvasY); ctx.closePath();
+                    }
+                    ctx.fill(); ctx.strokeStyle = 'black'; ctx.lineWidth = 1; ctx.stroke();
+                }
+                const legendItem = document.createElement('div'); legendItem.className = 'legend-item';
+                legendItem.innerHTML = `<span class="legend-color-box" style="background-color:${p.color};"></span> ${p.label}`;
+                legendDiv.appendChild(legendItem);
+            });
+        }
+
+        function calculateOptimalStrategy() {
+            readUserInputs(); 
+            const { T_target_c, RH_target_frac, SEER_rating, T_indoor_c, RH_indoor_frac, T_outdoor_c, RH_outdoor_frac } = globalUserInputs;
+            const strategyResultDiv = document.getElementById('strategyResult');
+            strategyPoints = []; 
+
+            if (SEER_rating <= 0) {
+                strategyResultDiv.textContent = "SEER rating must be positive.";
+                calculateAndDrawMainPlot(); return;
+            }
+
+            const W_target = getHumidityRatio(T_target_c, RH_target_frac); const h_target_kj = getEnthalpy(T_target_c, W_target);
+            const W_in = getHumidityRatio(T_indoor_c, RH_indoor_frac); const h_in_kj = getEnthalpy(T_indoor_c, W_in);
+            const W_out = getHumidityRatio(T_outdoor_c, RH_outdoor_frac); const h_out_kj = getEnthalpy(T_outdoor_c, W_out);
+
+            const energy_ac_only_wh = getElectricalEnergyWhPerKg(h_in_kj, h_target_kj, SEER_rating);
+            const energy_full_vent_wh = getElectricalEnergyWhPerKg(h_out_kj, h_target_kj, SEER_rating);
+
+            let min_energy_partial_vent_wh = Infinity, optimal_mix_fraction_outdoor = 0;
+            let optimal_mix_T = T_indoor_c, optimal_mix_RH_frac = RH_indoor_frac;
+
+            for (let x = 0; x <= 1; x += 0.01) {
+                const h_mixed_kj = (1 - x) * h_in_kj + x * h_out_kj;
+                const current_mix_energy_wh = getElectricalEnergyWhPerKg(h_mixed_kj, h_target_kj, SEER_rating);
+                if (!isNaN(current_mix_energy_wh) && current_mix_energy_wh < min_energy_partial_vent_wh) {
+                    min_energy_partial_vent_wh = current_mix_energy_wh; optimal_mix_fraction_outdoor = x;
+                    optimal_mix_T = (1 - x) * T_indoor_c + x * T_outdoor_c;
+                    const W_mixed = (1 - x) * W_in + x * W_out;
+                    const Pw_mixed = W_mixed * P_ATM / (0.62198 + W_mixed);
+                    const Psat_mixed = getSaturationVaporPressure(optimal_mix_T);
+                    optimal_mix_RH_frac = Psat_mixed > 0 ? Math.min(1, Math.max(0, Pw_mixed / Psat_mixed)) : 0;
+                }
+            }
+            
+            const energies = {"AC Only": energy_ac_only_wh, "Full Vent": energy_full_vent_wh, [`Optimal Mix (${(optimal_mix_fraction_outdoor * 100).toFixed(0)}% Out)`]: min_energy_partial_vent_wh};
+            const validEnergies = Object.entries(energies).filter(([_, v]) => !isNaN(v));
+            let bestStrategyName = "N/A", bestEnergyWh = NaN;
+            if (validEnergies.length > 0) {
+                const [name, energy] = validEnergies.reduce((best, current) => current[1] < best[1] ? current : best);
+                bestStrategyName = name; bestEnergyWh = energy;
+            }
+            
+            strategyResultDiv.innerHTML = `
+                <p class="mb-1"><strong class="strategy-title">Target:</strong> ${T_target_c}°C, ${(RH_target_frac * 100).toFixed(0)}% RH | <strong class="strategy-title">SEER:</strong> ${SEER_rating}</p>
+                <hr class="my-1">
+                <p><strong class="strategy-title">1. AC Only</strong> (In: ${T_indoor_c}°C, ${(RH_indoor_frac * 100).toFixed(0)}%): <span class="font-medium">${energy_ac_only_wh.toFixed(2)} Wh/kg</span></p>
+                <p><strong class="strategy-title">2. Full Vent</strong> (Out: ${T_outdoor_c}°C, ${(RH_outdoor_frac * 100).toFixed(0)}%): <span class="font-medium">${energy_full_vent_wh.toFixed(2)} Wh/kg</span></p>
+                <p><strong class="strategy-title">3. Optimal Mix</strong> (${(optimal_mix_fraction_outdoor * 100).toFixed(0)}% Out): <span class="font-medium">${min_energy_partial_vent_wh.toFixed(2)} Wh/kg</span></p>
+                <hr class="my-1">
+                <p class="best-strategy mt-1">==> Best: ${bestStrategyName} (${bestEnergyWh.toFixed(2)} Wh/kg)</p>
+            `;
+
+            strategyPoints.push({ T: T_indoor_c, RH_percent: RH_indoor_frac * 100, label: 'Indoor', color: 'blue', marker: 'circle' });
+            strategyPoints.push({ T: T_outdoor_c, RH_percent: RH_outdoor_frac * 100, label: 'Outdoor', color: 'green', marker: 'square' });
+            strategyPoints.push({ T: optimal_mix_T, RH_percent: optimal_mix_RH_frac * 100, label: 'Optimal Mix', color: 'red', marker: 'diamond' });
+            calculateAndDrawMainPlot();
+        }
+
+        document.getElementById('updateMainPlotBtn').addEventListener('click', () => { strategyPoints = []; calculateAndDrawMainPlot(); });
+        document.getElementById('findStrategyBtn').addEventListener('click', calculateOptimalStrategy);
+
+        canvas.addEventListener('mousemove', (event) => {
+            const rect = canvas.getBoundingClientRect();
+            const xCanvas = event.clientX - rect.left; 
+            const yCanvas = event.clientY - rect.top;  
+
+            const xPlot = xCanvas - marginLeft;
+            const yPlot = yCanvas - marginTop;
+
+            const temp_idx = Math.floor(xPlot / cellWidth);
+            const rh_idx = Math.floor(yPlot / cellHeight);
+            
+            const flatEnergyAll = electricalEnergyGrid.flat(); 
+            const flatEnergyValid = flatEnergyAll.filter(e => !isNaN(e));
+            const minE = flatEnergyValid.length > 0 ? Math.min(...flatEnergyValid) : 0;
+            const maxE = flatEnergyValid.length > 0 ? Math.max(...flatEnergyValid) : 1;
+            if (minE === maxE && flatEnergyValid.length > 0) maxE = minE + 1; 
+            
+            drawAxes(); drawHeatmap(minE, maxE); 
+
+            if (temp_idx >= 0 && temp_idx < tempSteps && rh_idx >= 0 && rh_idx < rhSteps &&
+                xPlot >=0 && xPlot <= plotWidth && yPlot >=0 && yPlot <= plotHeight) { 
+                
+                const actual_temp_for_cell = tempMin + temp_idx * (tempMax - tempMin) / (tempSteps - 1);
+                const actual_rh_frac_for_cell = rhMax - rh_idx * (rhMax - rhMin) / (rhSteps - 1); 
+
+                const energyVal = electricalEnergyGrid[rh_idx]?.[temp_idx]; 
+
+                if (energyVal !== undefined && !isNaN(energyVal)) {
+                    annotationDiv.style.display = 'block';
+                    annotationDiv.style.left = `${xCanvas + canvasContainer.offsetLeft + 15}px`;
+                    annotationDiv.style.top = `${yCanvas + canvasContainer.offsetTop + 15}px`;
+                    annotationDiv.innerHTML = `Temp: ${actual_temp_for_cell.toFixed(1)}°C<br>RH: ${(actual_rh_frac_for_cell * 100).toFixed(0)}%<br>Energy: ${energyVal.toFixed(2)} Wh/kg`;
+                    drawPinnedLines(minE, maxE, energyVal); 
+                } else {
+                    annotationDiv.style.display = 'none';
+                    drawPinnedLines(minE, maxE); 
+                }
+            } else {
+                annotationDiv.style.display = 'none';
+                drawPinnedLines(minE, maxE); 
+            }
+            drawStrategyPoints(); 
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            annotationDiv.style.display = 'none';
+            const flatEnergyValid = electricalEnergyGrid.flat().filter(e => !isNaN(e));
+            const minE = flatEnergyValid.length > 0 ? Math.min(...flatEnergyValid) : 0;
+            const maxE = flatEnergyValid.length > 0 ? Math.max(...flatEnergyValid) : 1;
+            if (minE === maxE && flatEnergyValid.length > 0) maxE = minE + 1;
+            drawAxes(); drawHeatmap(minE, maxE); drawPinnedLines(minE, maxE); drawStrategyPoints();
+        });
+
+        canvas.addEventListener('click', (event) => {
+            const rect = canvas.getBoundingClientRect();
+            const xPlot = (event.clientX - rect.left) - marginLeft;
+            const yPlot = (event.clientY - rect.top) - marginTop;
+
+            const temp_idx = Math.floor(xPlot / cellWidth);
+            const rh_idx = Math.floor(yPlot / cellHeight);
+
+            if (temp_idx >= 0 && temp_idx < tempSteps && rh_idx >= 0 && rh_idx < rhSteps) {
+                const energyVal = electricalEnergyGrid[rh_idx]?.[temp_idx];
+                if (energyVal !== undefined && !isNaN(energyVal)) {
+                    pinnedLines.push({ energyValue: energyVal });
+                    const flatEnergyValid = electricalEnergyGrid.flat().filter(e => !isNaN(e));
+                    const minE = flatEnergyValid.length > 0 ? Math.min(...flatEnergyValid) : 0;
+                    const maxE = flatEnergyValid.length > 0 ? Math.max(...flatEnergyValid) : 1;
+                    if (minE === maxE && flatEnergyValid.length > 0) maxE = minE + 1;
+                    drawAxes(); drawHeatmap(minE, maxE); drawPinnedLines(minE, maxE); drawStrategyPoints();
+                }
+            }
+        });
+        
+        canvas.addEventListener('contextmenu', (event) => {
+            event.preventDefault(); 
+            pinnedLines = []; 
+            const flatEnergyValid = electricalEnergyGrid.flat().filter(e => !isNaN(e));
+            const minE = flatEnergyValid.length > 0 ? Math.min(...flatEnergyValid) : 0;
+            const maxE = flatEnergyValid.length > 0 ? Math.max(...flatEnergyValid) : 1;
+            if (minE === maxE && flatEnergyValid.length > 0) maxE = minE + 1;
+            drawAxes(); drawHeatmap(minE, maxE); drawPinnedLines(minE, maxE); drawStrategyPoints();
+        });
+
+        function initializeApp() {
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+            readUserInputs(); 
+            calculateAndDrawMainPlot();
+        }
+        initializeApp();
+    </script>
+</body>
+</html>
+
