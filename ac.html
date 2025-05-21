@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vibes Based AC Energy Optimizer</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Vibes Based AC Energy Optimizer</title> <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Inter', sans-serif; }
         .input-label { display: block; margin-bottom: 0.25rem; font-size: 0.875rem; font-weight: 500; color: #4A5568; }
@@ -29,9 +28,7 @@
 </head>
 <body class="bg-gray-100 p-4 md:p-8">
     <div class="container mx-auto max-w-6xl bg-white p-6 rounded-lg shadow-xl">
-        <h1 class="text-2xl md:text-3xl font-bold text-center text-gray-700 mb-6">Vibes Based Air Conditioner Energy Optimizer</h1>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <h1 class="text-2xl md:text-3xl font-bold text-center text-gray-700 mb-6">Vibes Based AC Energy Optimizer</h1> <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div class="bg-gray-50 p-4 rounded-md shadow">
                 <h2 class="text-lg font-semibold text-gray-700 mb-3">Target & AC Settings</h2>
                 <div><label for="targetTemp" class="input-label">Target Temp (°C):</label><input type="number" id="targetTemp" class="input-field" value="22.0" step="0.1"></div>
@@ -103,8 +100,9 @@
         const tempMin = 18, tempMax = 30;
         const rhMin = 0.30, rhMax = 0.95;
 
-        const tempSteps = (tempMax - tempMin) * 20; 
-        const rhSteps = Math.round((rhMax - rhMin) * 250); 
+        // ** INCREASED RESOLUTION EVEN FURTHER **
+        const tempSteps = (tempMax - tempMin) * 8; // Increased from * 5
+        const rhSteps = Math.round((rhMax - rhMin) * 80); // Increased from * 50
 
         const cellWidth = plotWidth / tempSteps;
         const cellHeight = plotHeight / rhSteps;
@@ -270,7 +268,7 @@
 
             linesToDraw.forEach(line => {
                 ctx.fillStyle = line.color || 'rgba(50,50,220,0.3)'; 
-                const tolerance = (maxE - minE) * 0.01 + 0.05; 
+                const tolerance = (maxE - minE) * 0.005 + 0.025; 
 
                 for (let i = 0; i < rhSteps; i++) {
                     for (let j = 0; j < tempSteps; j++) {
@@ -373,7 +371,6 @@
 
         canvas.addEventListener('mousemove', (event) => {
             const rect = canvas.getBoundingClientRect();
-            // ** CORRECTED ANNOTATION POSITIONING **
             const containerRect = canvasContainer.getBoundingClientRect();
             const mouseXInContainer = event.clientX - containerRect.left;
             const mouseYInContainer = event.clientY - containerRect.top;
@@ -406,7 +403,6 @@
 
                 if (energyVal !== undefined && !isNaN(energyVal)) {
                     annotationDiv.style.display = 'block';
-                    // Position relative to the container
                     annotationDiv.style.left = `${mouseXInContainer + 15}px`;
                     annotationDiv.style.top = `${mouseYInContainer + 15}px`;
                     annotationDiv.innerHTML = `Temp: ${actual_temp_for_cell.toFixed(1)}°C<br>RH: ${(actual_rh_frac_for_cell * 100).toFixed(0)}%<br>Energy: ${energyVal.toFixed(2)} Wh/kg`;
