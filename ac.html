@@ -112,8 +112,8 @@
             canvas.width = canvasWidth;
             canvas.height = canvasHeight;
             
-            tempSteps = Math.max(10, Math.round(plotWidth / 8)); // Aim for cells around 8px wide for higher res
-            rhSteps = Math.max(10, Math.round(plotHeight / 8)); // Aim for cells around 8px high
+            tempSteps = Math.max(10, Math.round(plotWidth / 8)); 
+            rhSteps = Math.max(10, Math.round(plotHeight / 8)); 
 
             cellWidth = plotWidth / tempSteps;
             cellHeight = plotHeight / rhSteps;
@@ -338,8 +338,7 @@
         
         function handlePointerMove(event, isTouchEvent = false) {
             const rect = canvas.getBoundingClientRect();
-            const pageX = isTouchEvent ? event.touches[0].pageX : event.pageX;
-            const pageY = isTouchEvent ? event.touches[0].pageY : event.pageY;
+            // Use clientX/clientY for positioning fixed elements relative to viewport
             const clientX = isTouchEvent ? event.touches[0].clientX : event.clientX;
             const clientY = isTouchEvent ? event.touches[0].clientY : event.clientY;
 
@@ -365,15 +364,21 @@
                 const energyVal = electricalEnergyGrid[rh_idx]?.[temp_idx]; 
                 if (energyVal !== undefined && !isNaN(energyVal)) {
                     annotationDiv.style.display = 'block';
-                    let annoTop = pageY + 15;
-                    let annoLeft = pageX + 15;
-                    // Check viewport boundaries and adjust if necessary
-                    if (annoTop + annotationDiv.offsetHeight > window.innerHeight) {
-                        annoTop = pageY - annotationDiv.offsetHeight - 15;
+                    let annoTop = clientY + 15; // Use clientY
+                    let annoLeft = clientX + 15; // Use clientX
+                    
+                    const annoHeight = annotationDiv.offsetHeight;
+                    const annoWidth = annotationDiv.offsetWidth;
+
+                    if (annoTop + annoHeight > window.innerHeight) {
+                        annoTop = clientY - annoHeight - 15;
                     }
-                     if (annoLeft + annotationDiv.offsetWidth > window.innerWidth) {
-                        annoLeft = pageX - annotationDiv.offsetWidth - 15;
+                    if (annoLeft + annoWidth > window.innerWidth) {
+                        annoLeft = clientX - annoWidth - 15;
                     }
+                    if (annoTop < 0) annoTop = 5; 
+                    if (annoLeft < 0) annoLeft = 5;
+
                     annotationDiv.style.top = `${annoTop}px`;
                     annotationDiv.style.left = `${annoLeft}px`;
 
@@ -385,15 +390,25 @@
         }
 
         canvas.addEventListener('mousemove', (event) => handlePointerMove(event, false));
+        
         canvas.addEventListener('touchmove', (event) => {
             if (event.touches.length === 1) {
-                event.preventDefault(); // Prevent scrolling while dragging on canvas
+                // Only prevent default if touch is clearly on canvas area,
+                // to allow scrolling if touch starts near edges.
+                const rect = canvas.getBoundingClientRect();
+                const touchX = event.touches[0].clientX - rect.left;
+                const touchY = event.touches[0].clientY - rect.top;
+                if (touchX > marginLeft && touchX < marginLeft + plotWidth && 
+                    touchY > marginTop && touchY < marginTop + plotHeight) {
+                    event.preventDefault(); 
+                }
+
                 handlePointerMove(event, true);
-                // If touch moves significantly, cancel long press
                 const deltaX = Math.abs(event.touches[0].clientX - touchStartX);
                 const deltaY = Math.abs(event.touches[0].clientY - touchStartY);
                 if (deltaX > 10 || deltaY > 10) { 
                     clearTimeout(longPressTimeout);
+                    isDragging = true; // Set dragging if significant movement
                 }
             }
         });
@@ -408,7 +423,11 @@
             drawAxes(); drawHeatmap(minE, maxE); drawPinnedLines(minE, maxE); drawStrategyPoints();
         });
 
-        canvas.addEventListener('click', (event) => { // For desktop click
+        canvas.addEventListener('click', (event) => { 
+            if (isDragging) { // If it was a drag (on mobile, for example), don't treat as click
+                isDragging = false;
+                return;
+            }
             const rect = canvas.getBoundingClientRect();
             const xPlot = (event.clientX - rect.left) - marginLeft; const yPlot = (event.clientY - rect.top) - marginTop;
             const temp_idx = Math.floor(xPlot / cellWidth); const rh_idx = Math.floor(yPlot / cellHeight);
@@ -438,28 +457,26 @@
         
         canvas.addEventListener('touchstart', (event) => {
             if (event.touches.length === 1) { 
-                // event.preventDefault(); // Only prevent if we are sure it's a plot interaction, not a scroll attempt nearby
                 touchStartTime = Date.now();
                 touchStartX = event.touches[0].clientX;
                 touchStartY = event.touches[0].clientY;
-                lastTouchMoveX = touchStartX; // For tap vs drag differentiation
+                lastTouchMoveX = touchStartX; 
                 lastTouchMoveY = touchStartY;
                 isDragging = false; 
                 longPressTimeout = setTimeout(handleClearPinnedLines, LONG_PRESS_DURATION);
-                
-                // Show annotation on touchstart
-                handlePointerMove(event, true);
+                handlePointerMove(event, true); // Show annotation on touchstart
             }
         });
         canvas.addEventListener('touchend', (event) => { 
             clearTimeout(longPressTimeout);
             const duration = Date.now() - touchStartTime;
-            const deltaX = Math.abs(lastTouchMoveX - touchStartX); // Use last move pos to check if it was a drag
+            
+            // Use lastTouchMoveX/Y to determine if it was a drag or a stationary tap
+            const deltaX = Math.abs(lastTouchMoveX - touchStartX); 
             const deltaY = Math.abs(lastTouchMoveY - touchStartY);
 
-            if (duration < LONG_PRESS_DURATION && !isDragging && (deltaX < 10 && deltaY < 10)) { // It's a tap
+            if (duration < LONG_PRESS_DURATION && (deltaX < 10 && deltaY < 10)) { // It's a tap
                 const rect = canvas.getBoundingClientRect();
-                // Use the start touch coordinates for tap location to be consistent
                 const xPlot = touchStartX - rect.left - marginLeft; 
                 const yPlot = touchStartY - rect.top - marginTop;
                 const temp_idx = Math.floor(xPlot / cellWidth); 
@@ -469,31 +486,18 @@
                     const energyVal = electricalEnergyGrid[rh_idx]?.[temp_idx];
                     if (energyVal !== undefined && !isNaN(energyVal)) {
                         pinnedLines.push({ energyValue: energyVal });
-                        // Redraw to show new pinned line
-                        const flatEnergyValid = electricalEnergyGrid.flat().filter(e => !isNaN(e));
-                        const minE = flatEnergyValid.length > 0 ? Math.min(...flatEnergyValid) : 0;
-                        let maxE = flatEnergyValid.length > 0 ? Math.max(...flatEnergyValid) : 1;
-                        if (minE === maxE && flatEnergyValid.length > 0) maxE = minE + 1;
-                        drawAxes(); drawHeatmap(minE, maxE); drawPinnedLines(minE, maxE); drawStrategyPoints();
                     }
                 }
             }
-            isDragging = false; // Reset dragging flag
-        });
-        canvas.addEventListener('touchmove', (event) => { // Re-add touchmove for dragging flag
-             if (event.touches.length === 1) {
-                event.preventDefault();
-                isDragging = true; // Set dragging flag
-                lastTouchMoveX = event.touches[0].clientX;
-                lastTouchMoveY = event.touches[0].clientY;
-                handlePointerMove(event, true); // Continue to update hover effect
-                // If touch moves significantly, cancel long press (already in handlePointerMove via touchmove)
-                const deltaX = Math.abs(event.touches[0].clientX - touchStartX);
-                const deltaY = Math.abs(event.touches[0].clientY - touchStartY);
-                if (deltaX > 10 || deltaY > 10) { 
-                    clearTimeout(longPressTimeout);
-                }
-            }
+            
+            annotationDiv.style.display = 'none'; // Hide annotation on touchend
+            isDragging = false; 
+
+            const flatEnergyValid = electricalEnergyGrid.flat().filter(e => !isNaN(e));
+            const minE = flatEnergyValid.length > 0 ? Math.min(...flatEnergyValid) : 0;
+            let maxE = flatEnergyValid.length > 0 ? Math.max(...flatEnergyValid) : 1;
+            if (minE === maxE && flatEnergyValid.length > 0) maxE = minE + 1;
+            drawAxes(); drawHeatmap(minE, maxE); drawPinnedLines(minE, maxE); drawStrategyPoints();
         });
 
 
