@@ -76,7 +76,7 @@
     <script>
         const KJ_TO_BTU = 0.947817;
         const P_ATM = 101325; 
-        let globalUserInputs = {};
+        let globalUserInputs = {}; // Will be populated by readUserInputs on init and updates
         let electricalEnergyGrid = []; 
         let pinnedLines = []; 
         let strategyPoints = []; 
@@ -92,14 +92,13 @@
 
         const marginTop = 40, marginRight = 30, marginBottom = 60, marginLeft = 70; 
         const tempMin = 18, tempMax = 30;
-        const rhMin = 30, rhMax = 95; // RH range now in percentage for inputs, but calculations use fraction
+        const rhMin = 30, rhMax = 95; // Axis/display range for RH in %
         let tempSteps, rhSteps;
 
         let touchStartTime = 0, longPressTimeout = null;
         const LONG_PRESS_DURATION = 700; 
         let touchStartX, touchStartY, lastTouchMoveX, lastTouchMoveY;
         let isDragging = false;
-
 
         function updateCanvasDimensions() {
             const containerWidth = canvasContainer.clientWidth;
@@ -108,17 +107,13 @@
             plotWidth = canvasWidth - marginLeft - marginRight;
             plotHeight = plotWidth / aspectRatio; 
             canvasHeight = plotHeight + marginTop + marginBottom;
-
             canvas.width = canvasWidth;
             canvas.height = canvasHeight;
-            
             tempSteps = Math.max(10, Math.round(plotWidth / 8)); 
             rhSteps = Math.max(10, Math.round(plotHeight / 8)); 
-
             cellWidth = plotWidth / tempSteps;
             cellHeight = plotHeight / rhSteps;
         }
-
 
         function getSaturationVaporPressure(T_c) { return 610.78 * Math.exp((17.27 * T_c) / (T_c + 237.3)); }
         function getHumidityRatio(T_c, RH_frac) { // RH_frac is 0.0 to 1.0
@@ -133,33 +128,47 @@
             return (thermal_kj * KJ_TO_BTU) / seer;
         }
         
-        function readUserInputs() {
-            globalUserInputs = {
-                T_target_c: parseFloat(document.getElementById('targetTemp').value),
-                RH_target_frac: parseFloat(document.getElementById('targetRH').value) / 100.0, // Convert % to fraction
-                SEER_rating: parseFloat(document.getElementById('seer').value),
-                T_indoor_c: parseFloat(document.getElementById('indoorTemp').value),
-                RH_indoor_frac: parseFloat(document.getElementById('indoorRH').value) / 100.0, // Convert % to fraction
-                T_outdoor_c: parseFloat(document.getElementById('outdoorTemp').value),
-                RH_outdoor_frac: parseFloat(document.getElementById('outdoorRH').value) / 100.0, // Convert % to fraction
-            };
-            if (isNaN(globalUserInputs.SEER_rating) || globalUserInputs.SEER_rating <= 0) globalUserInputs.SEER_rating = 1;
-            Object.keys(globalUserInputs).forEach(key => {
-                if (isNaN(globalUserInputs[key])) {
-                    if (key.includes("RH")) { globalUserInputs[key] = 0.5; } 
-                    else if (key.includes("SEER")) { globalUserInputs[key] = 14; } 
-                    else { globalUserInputs[key] = 20; }
+        function readUserInputsAndValidate() {
+            let allValid = true;
+            const tempGlobalStore = {}; // Temporary store before committing to globalUserInputs
+
+            const getAndValidate = (id, key, isRH = false, minVal, maxVal, defaultVal) => {
+                const inputElement = document.getElementById(id);
+                let valStr = inputElement.value;
+                let parsedVal = parseFloat(valStr);
+                
+                if (isNaN(parsedVal) || parsedVal < minVal || parsedVal > maxVal) {
+                    alert(`Invalid value for ${inputElement.labels[0].textContent.replace(':','')} Must be between ${minVal} and ${maxVal}. Reverting.`);
+                    // Revert DOM to current global value (or initial default if global not set yet)
+                    let revertDisplayVal = globalUserInputs[key] !== undefined ? globalUserInputs[key] : defaultVal;
+                    if (isRH && globalUserInputs[key] !== undefined) revertDisplayVal *= 100; // Convert fraction back to % for display
+                    else if (isRH) revertDisplayVal = defaultVal; // defaultVal for RH is already %
+                    
+                    inputElement.value = revertDisplayVal.toFixed(isRH ? 0 : 1);
+                    parsedVal = parseFloat(inputElement.value); // Re-parse reverted value
+                    allValid = false;
                 }
-            });
+                tempGlobalStore[key] = isRH ? parsedVal / 100.0 : parsedVal;
+            };
+
+            getAndValidate('targetTemp', 'T_target_c', false, -20, 50, 22.0);
+            getAndValidate('targetRH', 'RH_target_frac', true, 0, 100, 50);
+            getAndValidate('seer', 'SEER_rating', false, 1, 50, 14.0);
+            getAndValidate('indoorTemp', 'T_indoor_c', false, -20, 50, 26.0);
+            getAndValidate('indoorRH', 'RH_indoor_frac', true, 0, 100, 60);
+            getAndValidate('outdoorTemp', 'T_outdoor_c', false, -20, 50, 23.0);
+            getAndValidate('outdoorRH', 'RH_outdoor_frac', true, 0, 100, 75);
+            
+            if(allValid || Object.keys(globalUserInputs).length === 0) { // If all valid OR it's the first run
+                 Object.assign(globalUserInputs, tempGlobalStore);
+            }
+            return allValid;
         }
+
 
         function drawAxes() {
             ctx.clearRect(0, 0, canvasWidth, canvasHeight); 
-            ctx.fillStyle = '#374151'; 
-            ctx.strokeStyle = '#9CA3AF'; 
-            ctx.lineWidth = 1;
-            ctx.font = '10px Inter';
-
+            ctx.fillStyle = '#374151'; ctx.strokeStyle = '#9CA3AF'; ctx.lineWidth = 1; ctx.font = '10px Inter';
             ctx.beginPath(); ctx.moveTo(marginLeft, marginTop + plotHeight);
             ctx.lineTo(marginLeft + plotWidth, marginTop + plotHeight); ctx.stroke();
             const numTempTicks = Math.min(6, Math.floor(plotWidth / 80)); 
@@ -170,7 +179,6 @@
                 ctx.textAlign = 'center'; ctx.fillText(temp.toFixed(1), x, marginTop + plotHeight + 15);
             }
             ctx.textAlign = 'center'; ctx.fillText('Initial Air Temperature (°C)', marginLeft + plotWidth / 2, marginTop + plotHeight + 35);
-
             ctx.beginPath(); ctx.moveTo(marginLeft, marginTop);
             ctx.lineTo(marginLeft, marginTop + plotHeight); ctx.stroke();
             const numRHTicks = Math.min(5, Math.floor(plotHeight / 50));
@@ -186,18 +194,20 @@
         }
 
         function calculateAndDrawMainPlot() {
-            readUserInputs();
+            if (!readUserInputsAndValidate() && Object.keys(globalUserInputs).length > 0) { // If inputs are invalid after first load, don't proceed
+                 // Keep old plot if inputs are bad after initial load to avoid blank screen
+                return;
+            }
             updateCanvasDimensions(); 
             electricalEnergyGrid = [];
             let minEnergy = Infinity, maxEnergy = -Infinity;
-
             const W_target = getHumidityRatio(globalUserInputs.T_target_c, globalUserInputs.RH_target_frac);
             const h_target_kj = getEnthalpy(globalUserInputs.T_target_c, W_target);
-            const rhMin_frac = rhMin / 100.0;
-            const rhMax_frac = rhMax / 100.0;
+            const rhMin_calc_frac = rhMin / 100.0; // Use axis min/max for calculation range
+            const rhMax_calc_frac = rhMax / 100.0;
 
             for (let i = 0; i < rhSteps; i++) { 
-                const rh_frac_calc = rhMax_frac - i * (rhMax_frac - rhMin_frac) / (rhSteps - 1); 
+                const rh_frac_calc = rhMax_calc_frac - i * (rhMax_calc_frac - rhMin_calc_frac) / (rhSteps - 1); 
                 electricalEnergyGrid[i] = [];
                 for (let j = 0; j < tempSteps; j++) { 
                     const temp_c = tempMin + j * (tempMax - tempMin) / (tempSteps - 1);
@@ -214,7 +224,6 @@
             if (minEnergy === Infinity || maxEnergy === -Infinity || minEnergy === maxEnergy) { 
                 minEnergy = 0; maxEnergy = (maxEnergy === -Infinity || maxEnergy === minEnergy) ? 1 : maxEnergy;
             }
-
             drawAxes(); 
             drawHeatmap(minEnergy, maxEnergy);
             drawColorBar(minEnergy, maxEnergy);
@@ -265,25 +274,19 @@
         function drawPinnedLines(minE, maxE, currentHoverEnergy = null) {
             const linesToDraw = [...pinnedLines];
             if (currentHoverEnergy !== null && !isNaN(currentHoverEnergy)) {
-                linesToDraw.push({ energyValue: currentHoverEnergy, color: 'rgba(220,50,50,0.9)'}); // More opaque hover
+                linesToDraw.push({ energyValue: currentHoverEnergy, color: 'rgba(220,50,50,0.9)'}); 
             }
-
             linesToDraw.forEach(line => {
-                ctx.fillStyle = line.color || 'rgba(50,50,220,0.6)'; // Pinned line color
-                // ** NARROWER TOLERANCE FOR FINER LINES **
-                const tolerance = (maxE - minE) * 0.005 + 0.01; // Even smaller base tolerance
-
+                ctx.fillStyle = line.color || 'rgba(50,50,220,0.6)'; 
+                const tolerance = (maxE - minE) * 0.005 + 0.01; 
                 for (let i = 0; i < rhSteps; i++) {
                     for (let j = 0; j < tempSteps; j++) {
                         const cellEnergy = electricalEnergyGrid[i][j];
                         if (!isNaN(cellEnergy) && Math.abs(cellEnergy - line.energyValue) < tolerance) {
-                            // Draw small circles instead of filling the whole cell
                             const centerX = marginLeft + j * cellWidth + cellWidth / 2;
                             const centerY = marginTop + i * cellHeight + cellHeight / 2;
-                            const radius = Math.max(1, Math.min(cellWidth, cellHeight) / 3); // Smaller radius
-                            ctx.beginPath();
-                            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-                            ctx.fill();
+                            const radius = Math.max(1, Math.min(cellWidth, cellHeight) / 3); 
+                            ctx.beginPath(); ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI); ctx.fill();
                         }
                     }
                 }
@@ -311,7 +314,7 @@
         }
 
         function calculateOptimalStrategy() {
-            readUserInputs(); 
+            if (!readUserInputsAndValidate()) return;
             const { T_target_c, RH_target_frac, SEER_rating, T_indoor_c, RH_indoor_frac, T_outdoor_c, RH_outdoor_frac } = globalUserInputs;
             const strategyResultDiv = document.getElementById('strategyResult');
             strategyPoints = []; 
@@ -340,23 +343,14 @@
             let bestStrategyName = "N/A", bestEnergyWh = NaN;
             if (validEnergies.length > 0) { const [name, energy] = validEnergies.reduce((best, current) => current[1] < best[1] ? current : best); bestStrategyName = name; bestEnergyWh = energy; }
             
-            strategyResultDiv.innerHTML = `
-                <p class="mb-1"><strong class="strategy-title">Target:</strong> ${T_target_c}°C, ${(RH_target_frac * 100).toFixed(0)}% RH | <strong class="strategy-title">SEER:</strong> ${SEER_rating}</p>
-                <hr class="my-1">
-                <p><strong class="strategy-title">1. AC Only</strong> (In: ${T_indoor_c}°C, ${(RH_indoor_frac * 100).toFixed(0)}%): <span class="font-medium">${energy_ac_only_wh.toFixed(2)} Wh/kg</span></p>
-                <p><strong class="strategy-title">2. Full Vent</strong> (Out: ${T_outdoor_c}°C, ${(RH_outdoor_frac * 100).toFixed(0)}%): <span class="font-medium">${energy_full_vent_wh.toFixed(2)} Wh/kg</span></p>
-                <p><strong class="strategy-title">3. Optimal Mix</strong> (${(optimal_mix_fraction_outdoor * 100).toFixed(0)}% Out): <span class="font-medium">${min_energy_partial_vent_wh.toFixed(2)} Wh/kg</span></p>
-                <hr class="my-1">
-                <p class="best-strategy mt-1">==> Best: ${bestStrategyName} (${bestEnergyWh.toFixed(2)} Wh/kg)</p>
-            `;
-
+            strategyResultDiv.innerHTML = `<p class="mb-1"><strong class="strategy-title">Target:</strong> ${T_target_c}°C, ${(RH_target_frac * 100).toFixed(0)}% RH | <strong class="strategy-title">SEER:</strong> ${SEER_rating}</p><hr class="my-1"><p><strong class="strategy-title">1. AC Only</strong> (In: ${T_indoor_c}°C, ${(RH_indoor_frac * 100).toFixed(0)}%): <span class="font-medium">${energy_ac_only_wh.toFixed(2)} Wh/kg</span></p><p><strong class="strategy-title">2. Full Vent</strong> (Out: ${T_outdoor_c}°C, ${(RH_outdoor_frac * 100).toFixed(0)}%): <span class="font-medium">${energy_full_vent_wh.toFixed(2)} Wh/kg</span></p><p><strong class="strategy-title">3. Optimal Mix</strong> (${(optimal_mix_fraction_outdoor * 100).toFixed(0)}% Out): <span class="font-medium">${min_energy_partial_vent_wh.toFixed(2)} Wh/kg</span></p><hr class="my-1"><p class="best-strategy mt-1">==> Best: ${bestStrategyName} (${bestEnergyWh.toFixed(2)} Wh/kg)</p>`;
             strategyPoints.push({ T: T_indoor_c, RH_percent: RH_indoor_frac * 100, label: 'Indoor', color: 'blue', marker: 'circle' });
             strategyPoints.push({ T: T_outdoor_c, RH_percent: RH_outdoor_frac * 100, label: 'Outdoor', color: 'green', marker: 'square' });
             strategyPoints.push({ T: optimal_mix_T, RH_percent: optimal_mix_RH_frac * 100, label: 'Optimal Mix', color: 'red', marker: 'diamond' });
             calculateAndDrawMainPlot();
         }
 
-        document.getElementById('updateMainPlotBtn').addEventListener('click', () => { strategyPoints = []; calculateAndDrawMainPlot(); });
+        document.getElementById('updateMainPlotBtn').addEventListener('click', () => { if(readUserInputsAndValidate()){ strategyPoints = []; calculateAndDrawMainPlot();} });
         document.getElementById('findStrategyBtn').addEventListener('click', calculateOptimalStrategy);
         
         function handlePointerMove(event, isTouchEvent = false) {
@@ -393,7 +387,7 @@
 
                     if (isTouchEvent) {
                         annoLeft = clientX - annoWidth / 2; 
-                        annoTop = clientY - annoHeight - 20; 
+                        annoTop = clientY - annoHeight - 25; // Increased offset for finger
                     } else { 
                         annoLeft = clientX + 15;
                         annoTop = clientY + 15;
@@ -402,10 +396,10 @@
                     if (annoLeft < 5) annoLeft = 5; 
                     if (annoLeft + annoWidth > window.innerWidth - 5) annoLeft = window.innerWidth - annoWidth - 5; 
                     if (annoTop < 5) { 
-                        annoTop = clientY + (isTouchEvent ? 20 : 15); 
+                        annoTop = clientY + (isTouchEvent ? 25 : 15); // Increased offset for finger
                         if (annoTop + annoHeight > window.innerHeight - 5) annoTop = window.innerHeight - annoHeight - 5; 
                     } else if (annoTop + annoHeight > window.innerHeight - 5) { 
-                        annoTop = clientY - annoHeight - (isTouchEvent ? 20 : 15); 
+                        annoTop = clientY - annoHeight - (isTouchEvent ? 25 : 15); // Increased offset for finger
                         if (annoTop < 5) annoTop = 5; 
                     }
                     
@@ -541,7 +535,7 @@
 
 
         function initializeApp() {
-            readUserInputs(); 
+            readUserInputsAndValidate(); // Use the version that validates and potentially reverts DOM
             calculateAndDrawMainPlot(); 
         }
         initializeApp();
