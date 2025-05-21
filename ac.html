@@ -338,7 +338,6 @@
         
         function handlePointerMove(event, isTouchEvent = false) {
             const rect = canvas.getBoundingClientRect();
-            // Use clientX/clientY for positioning fixed elements relative to viewport
             const clientX = isTouchEvent ? event.touches[0].clientX : event.clientX;
             const clientY = isTouchEvent ? event.touches[0].clientY : event.clientY;
 
@@ -364,21 +363,35 @@
                 const energyVal = electricalEnergyGrid[rh_idx]?.[temp_idx]; 
                 if (energyVal !== undefined && !isNaN(energyVal)) {
                     annotationDiv.style.display = 'block';
-                    let annoTop = clientY + 15; // Use clientY
-                    let annoLeft = clientX + 15; // Use clientX
+                    const annoHeight = annotationDiv.offsetHeight; // Get height after display block
+                    const annoWidth = annotationDiv.offsetWidth;   // Get width after display block
+                    let annoTop, annoLeft;
+
+                    if (isTouchEvent) {
+                        annoLeft = clientX - annoWidth / 2; 
+                        annoTop = clientY - annoHeight - 20; // 20px above touch
+                    } else { 
+                        annoLeft = clientX + 15;
+                        annoTop = clientY + 15;
+                    }
                     
-                    const annoHeight = annotationDiv.offsetHeight;
-                    const annoWidth = annotationDiv.offsetWidth;
-
-                    if (annoTop + annoHeight > window.innerHeight) {
-                        annoTop = clientY - annoHeight - 15;
+                    // Adjust to keep within viewport
+                    if (annoLeft < 5) annoLeft = 5; 
+                    if (annoLeft + annoWidth > window.innerWidth - 5) {
+                        annoLeft = window.innerWidth - annoWidth - 5; 
                     }
-                    if (annoLeft + annoWidth > window.innerWidth) {
-                        annoLeft = clientX - annoWidth - 15;
+                    if (annoTop < 5) { 
+                        annoTop = clientY + (isTouchEvent ? 20 : 15); 
+                        if (annoTop + annoHeight > window.innerHeight - 5) {
+                             annoTop = window.innerHeight - annoHeight - 5; 
+                        }
+                    } else if (annoTop + annoHeight > window.innerHeight - 5) { 
+                        annoTop = clientY - annoHeight - (isTouchEvent ? 20 : 15); 
+                        if (annoTop < 5) {
+                            annoTop = 5; 
+                        }
                     }
-                    if (annoTop < 0) annoTop = 5; 
-                    if (annoLeft < 0) annoLeft = 5;
-
+                    
                     annotationDiv.style.top = `${annoTop}px`;
                     annotationDiv.style.left = `${annoLeft}px`;
 
@@ -393,8 +406,6 @@
         
         canvas.addEventListener('touchmove', (event) => {
             if (event.touches.length === 1) {
-                // Only prevent default if touch is clearly on canvas area,
-                // to allow scrolling if touch starts near edges.
                 const rect = canvas.getBoundingClientRect();
                 const touchX = event.touches[0].clientX - rect.left;
                 const touchY = event.touches[0].clientY - rect.top;
@@ -402,13 +413,12 @@
                     touchY > marginTop && touchY < marginTop + plotHeight) {
                     event.preventDefault(); 
                 }
-
                 handlePointerMove(event, true);
                 const deltaX = Math.abs(event.touches[0].clientX - touchStartX);
                 const deltaY = Math.abs(event.touches[0].clientY - touchStartY);
                 if (deltaX > 10 || deltaY > 10) { 
                     clearTimeout(longPressTimeout);
-                    isDragging = true; // Set dragging if significant movement
+                    isDragging = true; 
                 }
             }
         });
@@ -424,7 +434,7 @@
         });
 
         canvas.addEventListener('click', (event) => { 
-            if (isDragging) { // If it was a drag (on mobile, for example), don't treat as click
+            if (isDragging) { 
                 isDragging = false;
                 return;
             }
@@ -464,18 +474,16 @@
                 lastTouchMoveY = touchStartY;
                 isDragging = false; 
                 longPressTimeout = setTimeout(handleClearPinnedLines, LONG_PRESS_DURATION);
-                handlePointerMove(event, true); // Show annotation on touchstart
+                handlePointerMove(event, true); 
             }
         });
         canvas.addEventListener('touchend', (event) => { 
             clearTimeout(longPressTimeout);
             const duration = Date.now() - touchStartTime;
-            
-            // Use lastTouchMoveX/Y to determine if it was a drag or a stationary tap
             const deltaX = Math.abs(lastTouchMoveX - touchStartX); 
             const deltaY = Math.abs(lastTouchMoveY - touchStartY);
 
-            if (duration < LONG_PRESS_DURATION && (deltaX < 10 && deltaY < 10)) { // It's a tap
+            if (duration < LONG_PRESS_DURATION && (deltaX < 10 && deltaY < 10)) { 
                 const rect = canvas.getBoundingClientRect();
                 const xPlot = touchStartX - rect.left - marginLeft; 
                 const yPlot = touchStartY - rect.top - marginTop;
@@ -490,7 +498,7 @@
                 }
             }
             
-            annotationDiv.style.display = 'none'; // Hide annotation on touchend
+            annotationDiv.style.display = 'none'; 
             isDragging = false; 
 
             const flatEnergyValid = electricalEnergyGrid.flat().filter(e => !isNaN(e));
