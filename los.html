@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -430,21 +429,23 @@
 
         async function runLOSFilterAnalysis() {
             const userCoords = getCurrentCoords();
-            
-            const analysisPromises = repeaterData.map((repeater, index) => {
-                return new Promise(async (resolve) => {
-                    filterStatusDiv.innerHTML = `<div class="flex items-center"><div class="loading-spinner !w-4 !h-4 mr-2"></div><span>Analyzing ${index + 1} of ${repeaterData.length}...</span></div>`;
-                    const result = await getLOSForRepeater(repeater, userCoords);
+            let completedCount = 0;
+            const totalRepeaters = repeaterData.length;
+
+            const analysisPromises = repeaterData.map(repeater => 
+                getLOSForRepeater(repeater, userCoords).then(result => {
                     repeater.isVisible = result.isVisible;
-                    resolve();
-                });
-            });
+                    completedCount++;
+                    filterStatusDiv.innerHTML = `<div class="flex items-center"><div class="loading-spinner !w-4 !h-4 mr-2"></div><span>Analyzed ${completedCount} of ${totalRepeaters}...</span></div>`;
+                    return result;
+                })
+            );
 
             await Promise.all(analysisPromises);
             
-            localStorage.setItem('repeaterData', JSON.stringify(repeaterData)); // Save results
+            localStorage.setItem('repeaterData', JSON.stringify(repeaterData));
             const visibleRepeaters = repeaterData.filter(r => r.isVisible);
-            filterStatusDiv.textContent = `Showing ${visibleRepeaters.length} of ${repeaterData.length} repeaters with clear Line-of-Sight.`;
+            filterStatusDiv.textContent = `Showing ${visibleRepeaters.length} of ${totalRepeaters} repeaters with clear Line-of-Sight.`;
             displayRepeaters(visibleRepeaters, userCoords);
         }
 
