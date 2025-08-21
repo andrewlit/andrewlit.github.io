@@ -83,7 +83,7 @@
                     </div>
                     <div>
                         <label for="repeater-height" class="block text-sm font-medium text-gray-700">Default Repeater Antenna Height (meters)</label>
-                        <input type="number" id="repeater-height" value="30" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        <input type="number" id="repeater-height" value="10" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
                     </div>
                     <div class="flex space-x-2">
                          <button id="resetLocationBtn" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300">Reset to My Location</button>
@@ -96,6 +96,9 @@
                 </div>
                 
                 <h2 class="text-2xl font-semibold mt-8 mb-4 border-b pb-2">Nearby Repeaters</h2>
+                <div class="mb-4">
+                    <input type="text" id="repeater-search" placeholder="Search callsign, freq, location..." class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
                 <div class="flex items-center mb-4">
                     <input id="los-filter-checkbox" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
                     <label for="los-filter-checkbox" class="ml-2 block text-sm text-gray-900">Show only repeaters with Line-of-Sight</label>
@@ -200,6 +203,7 @@
         let lastAnalyzedTarget = null;
         let placementInfo = { mode: null, id: null }; // 'custom' or 'repeater'
         let previousDefaultRepeaterHeight = 30;
+        let analysisController = null; // To manage and cancel ongoing batch analyses
         const DEFAULT_LAT = 43.6532; // Downtown Toronto
         const DEFAULT_LON = -79.3832;
         const CANADIAN_PROVINCES = {
@@ -214,7 +218,7 @@
             addMarkerBtn, resetLocationBtn,
             customMarkerInputContainer, customMarkerNameInput, losFilterCheckbox, filterStatusDiv,
             repeaterListDiv, customListDiv, losResultContainer, selectedRepeaterInfoDiv,
-            profileChartCanvas;
+            profileChartCanvas, repeaterSearchInput;
 
         // --- Map and Chart Initialization ---
         let map;
@@ -244,6 +248,7 @@
             losResultContainer = document.getElementById('los-result-container');
             selectedRepeaterInfoDiv = document.getElementById('selected-repeater-info');
             profileChartCanvas = document.getElementById('profileChart');
+            repeaterSearchInput = document.getElementById('repeater-search');
             
             // Initialize map
             map = L.map('map').setView([DEFAULT_LAT, DEFAULT_LON], 9);
@@ -263,6 +268,7 @@
             addMarkerBtn.addEventListener('click', () => togglePlaceMarkerMode('custom'));
             resetLocationBtn.addEventListener('click', requestUserGeolocation);
             userHeightInput.addEventListener('input', () => { if (lastAnalyzedTarget) analyzePath(lastAnalyzedTarget, getCurrentCoords()); });
+            repeaterSearchInput.addEventListener('input', () => displayRepeaters(repeaterData, getCurrentCoords()));
             
             repeaterHeightInput.addEventListener('focus', (e) => {
                 previousDefaultRepeaterHeight = parseFloat(e.target.value) || 30;
@@ -418,6 +424,9 @@
         const delay = ms => new Promise(res => setTimeout(res, ms));
 
         function handleLOSFilterToggle(event) {
+            if (analysisController) {
+                analysisController.abort();
+            }
             localStorage.setItem('losFilterState', event.target.checked);
             if (repeaterData.length === 0) {
                 if(event.target.checked) {
@@ -443,52 +452,100 @@
         }
 
         async function runLOSFilterAnalysis() {
+            // Cancel any previous analysis that might be running
+            if (analysisController) {
+                analysisController.abort();
+            }
+            analysisController = new AbortController();
+            const signal = analysisController.signal;
+
             const userCoords = getCurrentCoords();
             let completedCount = 0;
             const repeatersToAnalyze = repeaterData.filter(r => !r.locationUnknown);
             const totalRepeaters = repeatersToAnalyze.length;
-            let visibleRepeaters = []; // Start with an empty list
+            let visibleRepeaters = [];
+            const startTime = Date.now();
 
-            // Clear the list initially to show progress from a blank slate
             displayRepeaters([], userCoords);
 
-            for (const repeater of repeatersToAnalyze) {
-                // If the checkbox was unchecked during analysis, stop the process.
-                if (!losFilterCheckbox.checked) {
-                    filterStatusDiv.textContent = 'Analysis cancelled.';
-                    displayRepeaters(repeaterData, userCoords); // Show all repeaters again
+            const concurrencyLimit = 8;
+            const queue = [...repeatersToAnalyze];
+            
+            const worker = async () => {
+                while(queue.length > 0) {
+                    if (signal.aborted) return; // Stop if cancelled
+                    const repeater = queue.shift();
+                    if (!repeater) continue;
+
+                    const result = await getLOSForRepeater(repeater, userCoords);
+                    if (signal.aborted) return;
+
+                    repeater.isVisible = result.isVisible;
+                    completedCount++;
+
+                    if (repeater.isVisible) {
+                        visibleRepeaters.push(repeater);
+                        visibleRepeaters.sort((a, b) => getDistance(userCoords, a) - getDistance(userCoords, b));
+                        displayRepeaters([...visibleRepeaters], userCoords);
+                    }
+                    
+                    const elapsedTime = Date.now() - startTime;
+                    const avgTime = elapsedTime / completedCount;
+                    const remainingTime = avgTime * (totalRepeaters - completedCount);
+                    const formattedTime = formatRemainingTime(remainingTime);
+
+                    filterStatusDiv.innerHTML = `<div class="flex items-center"><div class="loading-spinner !w-4 !h-4 mr-2"></div><span>Analyzed ${completedCount} of ${totalRepeaters}... Found ${visibleRepeaters.length} with LOS. (Est. ${formattedTime} left)</span></div>`;
+                }
+            };
+
+            const workers = Array(concurrencyLimit).fill(null).map(worker);
+            
+            try {
+                await Promise.all(workers);
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    console.log('Batch analysis was cancelled.');
                     return;
                 }
-
-                const result = await getLOSForRepeater(repeater, userCoords);
-                repeater.isVisible = result.isVisible;
-                completedCount++;
-
-                if (repeater.isVisible) {
-                    // Add the newly found visible repeater to our list
-                    visibleRepeaters.push(repeater);
-                    // Re-display the updated list of visible repeaters
-                    displayRepeaters(visibleRepeaters, userCoords);
-                }
-
-                // Update the status message
-                filterStatusDiv.innerHTML = `<div class="flex items-center"><div class="loading-spinner !w-4 !h-4 mr-2"></div><span>Analyzed ${completedCount} of ${totalRepeaters}... Found ${visibleRepeaters.length} with LOS.</span></div>`;
+                throw error;
             }
 
-            // Final update after the loop
+            if (signal.aborted) return;
+
             localStorage.setItem('repeaterData', JSON.stringify(repeaterData));
-            filterStatusDiv.textContent = `Showing ${visibleRepeaters.length} of ${repeaterData.length} repeaters with clear Line-of-Sight.`;
-            // Final display call to ensure everything is sorted correctly
+            filterStatusDiv.textContent = `Showing ${visibleRepeaters.length} of ${totalRepeaters} repeaters with clear Line-of-Sight.`;
             displayRepeaters(visibleRepeaters, userCoords);
         }
 
+        function formatRemainingTime(ms) {
+            if (ms < 1000) return "< 1s";
+            let totalSeconds = Math.round(ms / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            if (minutes > 0) {
+                return `${minutes}m ${seconds}s`;
+            }
+            return `${seconds}s`;
+        }
+
+
         async function getLOSForRepeater(repeater, userCoords) {
             try {
-                const points = getPointsOnPath(userCoords, { lat: repeater.lat, lon: repeater.lon }, 50);
-                const elevationData = await getElevationProfile(points);
+                const initialPoints = getPointsOnPath(userCoords, { lat: repeater.lat, lon: repeater.lon }, 100);
+                let elevationProfile = await getElevationProfile(initialPoints);
                 const userAntennaHeight = parseFloat(userHeightInput.value) || 10;
                 const repeaterAntennaHeight = parseFloat(repeater.antennaHeight) || parseFloat(repeaterHeightInput.value) || 30;
-                const { isVisible } = calculateLineOfSight(elevationData, userAntennaHeight, repeaterAntennaHeight);
+                
+                let { isVisible } = calculateLineOfSight(elevationProfile, userAntennaHeight, repeaterAntennaHeight);
+
+                // Adaptive sampling for batch operation
+                if (isVisible) {
+                    const closeApproachSegments = findCloseApproachSegments(elevationProfile, userAntennaHeight, repeaterAntennaHeight, 20);
+                    if (closeApproachSegments.length > 0) {
+                        elevationProfile = await refineElevationProfile(elevationProfile, initialPoints, closeApproachSegments);
+                        ({ isVisible } = calculateLineOfSight(elevationProfile, userAntennaHeight, repeaterAntennaHeight));
+                    }
+                }
                 return { repeater, isVisible };
             } catch (error) {
                 console.error(`Failed to analyze LOS for ${repeater.callsign}:`, error);
@@ -497,7 +554,19 @@
         }
         
         function displayRepeaters(repeaters, userCoords) {
-            const knownRepeaters = repeaters.filter(r => !r.locationUnknown);
+            const searchTerm = repeaterSearchInput.value.toLowerCase();
+            let dataToDisplay = repeaters;
+
+            if (searchTerm) {
+                dataToDisplay = repeaters.filter(r => 
+                    r.callsign.toLowerCase().includes(searchTerm) ||
+                    r.outputFreq.includes(searchTerm) ||
+                    r.inputFreq.includes(searchTerm) ||
+                    r.location.toLowerCase().includes(searchTerm)
+                );
+            }
+
+            const knownRepeaters = dataToDisplay.filter(r => !r.locationUnknown);
             repeaterListDiv.innerHTML = '';
             
             if (markerClusterGroup) {
@@ -510,7 +579,7 @@
             if (knownRepeaters.length === 0 && losFilterCheckbox.checked) {
                  repeaterListDiv.innerHTML = '<p class="p-3 text-gray-500">No repeaters found with Line-of-Sight.</p>';
             } else if (knownRepeaters.length === 0) {
-                 repeaterListDiv.innerHTML = '<p class="p-3 text-gray-500">No repeaters to display.</p>';
+                 repeaterListDiv.innerHTML = '<p class="p-3 text-gray-500">No repeaters match your search.</p>';
             }
 
 
@@ -598,6 +667,9 @@
             map.setView([lat, lon], 9);
 
             userMarker.on('dragend', function(event) {
+                if (analysisController) {
+                    analysisController.abort();
+                }
                 const newCoords = event.target.getLatLng();
                 const standardizedCoords = { lat: newCoords.lat, lon: newCoords.lng };
                 latInput.value = standardizedCoords.lat.toFixed(5);
@@ -641,17 +713,29 @@
             repeaterMarker.options.customId = repeater.id;
             repeaterMarker.bindPopup(`<b>${repeater.callsign}</b>`).openPopup();
 
-            const points = getPointsOnPath(userCoords, { lat: repeater.lat, lon: repeater.lon }, 100);
+            const initialPoints = getPointsOnPath(userCoords, { lat: repeater.lat, lon: repeater.lon }, 100);
             
             try {
-                const elevationData = await getElevationProfile(points);
+                let elevationProfile = await getElevationProfile(initialPoints);
                 const userAntennaHeight = parseFloat(userHeightInput.value) || 10;
-                const repeaterAntennaHeight = parseFloat(repeater.antennaHeight) || parseFloat(repeaterHeightInput.value) || 30;
-                const { isVisible, obstructionPoint } = calculateLineOfSight(elevationData, userAntennaHeight, repeaterAntennaHeight);
+                let repeaterAntennaHeight = parseFloat(repeater.antennaHeight) || parseFloat(repeaterHeightInput.value) || 30;
+                
+                let { isVisible, obstructionPoint } = calculateLineOfSight(elevationProfile, userAntennaHeight, repeaterAntennaHeight);
+
+                // --- Adaptive Sampling Logic ---
+                if (isVisible) {
+                    const closeApproachSegments = findCloseApproachSegments(elevationProfile, userAntennaHeight, repeaterAntennaHeight, 20);
+                    if (closeApproachSegments.length > 0) {
+                        losResultContainer.innerHTML = '<div class="flex justify-center items-center"><div class="loading-spinner"></div><p class="ml-4">Refining path analysis...</p></div>';
+                        elevationProfile = await refineElevationProfile(elevationProfile, initialPoints, closeApproachSegments);
+                        // Recalculate with the refined profile
+                        ({ isVisible, obstructionPoint } = calculateLineOfSight(elevationProfile, userAntennaHeight, repeaterAntennaHeight));
+                    }
+                }
 
                 displayLosResult(isVisible, obstructionPoint, userCoords, repeater);
-                drawProfileChart(elevationData, userAntennaHeight, repeaterAntennaHeight, isVisible, obstructionPoint);
-                drawPathOnMap(points, isVisible);
+                drawProfileChart(elevationProfile, userAntennaHeight, repeaterAntennaHeight, isVisible, obstructionPoint);
+                drawPathOnMap(initialPoints, isVisible); // Draw original path line regardless of refinement
 
             } catch (error) {
                 console.error("Error during analysis:", error);
@@ -675,6 +759,7 @@
         }
 
         async function getElevationProfile(points) {
+            if (points.length === 0) return [];
             const start = points[0];
             const end = points[points.length - 1];
             
@@ -747,6 +832,65 @@
             return { isVisible: true, obstructionPoint: null };
         }
         
+        function findCloseApproachSegments(elevationProfile, userAntennaHeight, repeaterAntennaHeight, threshold) {
+            const segments = [];
+            if (elevationProfile.length < 2) return segments;
+
+            const startElevation = elevationProfile[0].elevation + userAntennaHeight;
+            const endElevation = elevationProfile[elevationProfile.length - 1].elevation + repeaterAntennaHeight;
+            
+            let currentSegment = null;
+
+            for (let i = 1; i < elevationProfile.length - 1; i++) {
+                const point = elevationProfile[i];
+                const fraction = i / (elevationProfile.length - 1);
+                const losHeight = startElevation + fraction * (endElevation - startElevation);
+                const clearance = losHeight - point.elevation;
+
+                if (clearance > 0 && clearance < threshold) {
+                    if (!currentSegment) {
+                        // Start a new segment, including one point before for context
+                        currentSegment = { start: Math.max(0, i - 1) };
+                    }
+                } else {
+                    if (currentSegment) {
+                        // End the current segment, including one point after for context
+                        currentSegment.end = Math.min(elevationProfile.length - 1, i);
+                        segments.push(currentSegment);
+                        currentSegment = null;
+                    }
+                }
+            }
+            // Close any open segment at the end of the path
+            if (currentSegment) {
+                currentSegment.end = elevationProfile.length - 1;
+                segments.push(currentSegment);
+            }
+            return segments;
+        }
+
+        async function refineElevationProfile(initialProfile, initialPoints, segments) {
+            let refinedProfile = [...initialProfile];
+            let offset = 0; // Keep track of how much the array length changes
+
+            for (const segment of segments) {
+                const startPoint = initialPoints[segment.start];
+                const endPoint = initialPoints[segment.end];
+                
+                // Get 50 new, high-resolution points within this segment
+                const refinedPoints = getPointsOnPath(startPoint, endPoint, 50);
+                const refinedSegmentProfile = await getElevationProfile(refinedPoints);
+
+                // Replace the old, coarse segment with the new, refined one
+                const pointsToRemove = segment.end - segment.start + 1;
+                refinedProfile.splice(segment.start + offset, pointsToRemove, ...refinedSegmentProfile);
+                
+                // Update the offset for subsequent splices
+                offset += refinedSegmentProfile.length - pointsToRemove;
+            }
+            return refinedProfile;
+        }
+
         function displaySelectedRepeaterInfo(repeater) {
             selectedRepeaterInfoDiv.innerHTML = `
                 <div class="text-left">
@@ -979,7 +1123,7 @@
                     repeaterMarker = null;
                     if (pathLine) map.removeLayer(pathLine);
                     if (profileChart) profileChart.destroy();
-                    losResultContainer.innerHTML = '<p class="text-gray-500">Select a repeater from the list to analyze the path.</p>';
+                    losResultContainer.innerHTML = '<p class="p-3 text-gray-500">Select a repeater from the list to analyze the path.</p>';
                     selectedRepeaterInfoDiv.innerHTML = '<p class="text-gray-500">Select a repeater to see its details here.</p>';
                 }
                 customMarkers.splice(index, 1);
