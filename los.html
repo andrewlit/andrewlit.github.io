@@ -20,9 +20,6 @@
     <!-- Chart.js for profile visualization -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <!-- PapaParse for CSV parsing -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-
     <style>
         /* Set a default font and ensure the map container has a defined height */
         body {
@@ -59,23 +56,18 @@
     <div class="container mx-auto p-4 md:p-8 max-w-7xl">
         <header class="text-center mb-8">
             <h1 class="text-4xl font-bold text-gray-900">Radio LOS Tool</h1>
-            <p class="text-lg text-gray-600 mt-2">Upload a CSV to analyze repeater line-of-sight.</p>
+            <p class="text-lg text-gray-600 mt-2">Upload a GPX file to analyze repeater line-of-sight.</p>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <!-- Left Column: Controls and Repeater List -->
-            <div class="lg-col-span-1 bg-white p-6 rounded-lg shadow-lg">
+            <div class="lg:col-span-1 bg-white p-6 rounded-lg shadow-lg">
                 <h2 class="text-2xl font-semibold mb-4 border-b pb-2">Controls</h2>
                 
                 <div class="space-y-4">
                     <div>
-                        <label for="csv-upload" class="block text-sm font-medium text-gray-700">Upload Repeaterbook CSV</label>
-                        <input type="file" id="csv-upload" accept=".csv" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
-                        <p class="text-xs text-gray-500 mt-1">Must contain 'Location' and 'State' columns.</p>
-                    </div>
-                     <div>
-                        <label for="radius" class="block text-sm font-medium text-gray-700">Search Radius (km)</label>
-                        <input type="number" id="radius" value="100" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        <label for="gpx-upload" class="block text-sm font-medium text-gray-700">Upload Repeaterbook GPX</label>
+                        <input type="file" id="gpx-upload" accept=".gpx" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
                     </div>
                     <div>
                         <label for="latitude" class="block text-sm font-medium text-gray-700">Your Latitude</label>
@@ -90,12 +82,8 @@
                         <input type="number" id="user-height" value="10" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
                     </div>
                     <div>
-                        <label for="repeater-height" class="block text-sm font-medium text-gray-700">Repeater Antenna Height (meters)</label>
+                        <label for="repeater-height" class="block text-sm font-medium text-gray-700">Default Repeater Antenna Height (meters)</label>
                         <input type="number" id="repeater-height" value="30" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                    </div>
-                    <div class="flex items-center">
-                        <input id="radius-toggle-checkbox" type="checkbox" checked class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                        <label for="radius-toggle-checkbox" class="ml-2 block text-sm text-gray-900">Show Search Radius</label>
                     </div>
                     <div class="flex space-x-2">
                          <button id="resetLocationBtn" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300">Reset to My Location</button>
@@ -107,36 +95,6 @@
                     </div>
                 </div>
                 
-                <div class="mt-8 border-t pt-4">
-                    <h2 class="text-2xl font-semibold mb-4 border-b pb-2">Manage Sets</h2>
-                    <div class="space-y-4">
-                        <div>
-                            <label for="set-select" class="block text-sm font-medium text-gray-700">Load Set</label>
-                            <select id="set-select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"></select>
-                        </div>
-                        <div>
-                            <label for="set-name-input" class="block text-sm font-medium text-gray-700">New Set Name</label>
-                            <input type="text" id="set-name-input" placeholder="Enter name to save..." class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
-                            <p id="set-error-msg" class="text-red-500 text-xs hidden mt-1">Please enter a name for the set.</p>
-                        </div>
-                        <div class="flex space-x-2">
-                            <button id="saveSetBtn" class="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300">Save Current Set</button>
-                            <button id="deleteSetBtn" class="w-full bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-yellow-700 transition duration-300">Delete Selected Set</button>
-                        </div>
-                         <div id="delete-confirmation" class="hidden space-y-2 mt-2 border-t pt-4">
-                            <p class="text-sm text-center font-semibold">Are you sure? This is permanent.</p>
-                             <div class="flex space-x-2">
-                                <button id="confirmDeleteBtn" class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700">Yes, Delete</button>
-                                <button id="cancelDeleteBtn" class="w-full bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400">Cancel</button>
-                             </div>
-                        </div>
-                         <div>
-                            <button id="clearDataBtn" class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition duration-300 mt-4">Clear All Saved Data</button>
-                        </div>
-                    </div>
-                </div>
-
-
                 <h2 class="text-2xl font-semibold mt-8 mb-4 border-b pb-2">Nearby Repeaters</h2>
                 <div class="flex items-center mb-4">
                     <input id="los-filter-checkbox" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
@@ -144,12 +102,42 @@
                 </div>
                 <div id="filter-status" class="text-sm text-gray-600 mb-2"></div>
                 <div id="repeater-list" class="space-y-2 max-h-60 overflow-y-auto">
-                    <p class="p-3 text-gray-500">Upload a CSV file or load a set to see repeater data.</p>
+                    <p class="p-3 text-gray-500">Upload a GPX file or load a set to see repeater data.</p>
                 </div>
 
                 <h2 class="text-2xl font-semibold mt-4 mb-4 border-b pb-2">Custom Locations</h2>
                 <div id="custom-list" class="space-y-2 max-h-40 overflow-y-auto">
                      <p class="p-3 text-gray-500">Click "Place Custom Marker" to add locations.</p>
+                </div>
+
+                <!-- Manage Sets for Desktop -->
+                <div class="hidden lg:block mt-8 border-t pt-4">
+                    <h2 class="text-2xl font-semibold mb-4 border-b pb-2">Manage Sets</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="set-select-desktop" class="block text-sm font-medium text-gray-700">Load Set</label>
+                            <select id="set-select-desktop" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"></select>
+                        </div>
+                        <div>
+                            <label for="set-name-input-desktop" class="block text-sm font-medium text-gray-700">New Set Name</label>
+                            <input type="text" id="set-name-input-desktop" placeholder="Enter name to save..." class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
+                            <p id="set-error-msg-desktop" class="text-red-500 text-xs hidden mt-1">Please enter a name for the set.</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button id="saveSetBtn-desktop" class="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300">Save Current Set</button>
+                            <button id="deleteSetBtn-desktop" class="w-full bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-yellow-700 transition duration-300">Delete Selected Set</button>
+                        </div>
+                         <div id="delete-confirmation-desktop" class="hidden space-y-2 mt-2 border-t pt-4">
+                            <p class="text-sm text-center font-semibold">Are you sure? This is permanent.</p>
+                             <div class="flex space-x-2">
+                                <button id="confirmDeleteBtn-desktop" class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700">Yes, Delete</button>
+                                <button id="cancelDeleteBtn-desktop" class="w-full bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400">Cancel</button>
+                             </div>
+                        </div>
+                         <div>
+                            <button id="clearDataBtn-desktop" class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition duration-300 mt-4">Clear All Saved Data</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -172,6 +160,36 @@
                 </div>
             </div>
         </div>
+
+        <!-- Manage Sets for Mobile -->
+        <div class="lg:hidden mt-8 bg-white p-6 rounded-lg shadow-lg">
+            <h2 class="text-2xl font-semibold mb-4 border-b pb-2">Manage Sets</h2>
+            <div class="space-y-4">
+                <div>
+                    <label for="set-select-mobile" class="block text-sm font-medium text-gray-700">Load Set</label>
+                    <select id="set-select-mobile" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"></select>
+                </div>
+                <div>
+                    <label for="set-name-input-mobile" class="block text-sm font-medium text-gray-700">New Set Name</label>
+                    <input type="text" id="set-name-input-mobile" placeholder="Enter name to save..." class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
+                    <p id="set-error-msg-mobile" class="text-red-500 text-xs hidden mt-1">Please enter a name for the set.</p>
+                </div>
+                <div class="flex space-x-2">
+                    <button id="saveSetBtn-mobile" class="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300">Save Current Set</button>
+                    <button id="deleteSetBtn-mobile" class="w-full bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-yellow-700 transition duration-300">Delete Selected Set</button>
+                </div>
+                 <div id="delete-confirmation-mobile" class="hidden space-y-2 mt-2 border-t pt-4">
+                    <p class="text-sm text-center font-semibold">Are you sure? This is permanent.</p>
+                     <div class="flex space-x-2">
+                        <button id="confirmDeleteBtn-mobile" class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700">Yes, Delete</button>
+                        <button id="cancelDeleteBtn-mobile" class="w-full bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400">Cancel</button>
+                     </div>
+                </div>
+                 <div>
+                    <button id="clearDataBtn-mobile" class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition duration-300 mt-4">Clear All Saved Data</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -180,6 +198,8 @@
         let customMarkers = [];
         let isPlacingMarker = false;
         let lastAnalyzedTarget = null;
+        let placementInfo = { mode: null, id: null }; // 'custom' or 'repeater'
+        let previousDefaultRepeaterHeight = 30;
         const DEFAULT_LAT = 43.6532; // Downtown Toronto
         const DEFAULT_LON = -79.3832;
         const CANADIAN_PROVINCES = {
@@ -190,37 +210,15 @@
         };
 
         // --- DOM Element References ---
-        const latInput = document.getElementById('latitude');
-        const lonInput = document.getElementById('longitude');
-        const userHeightInput = document.getElementById('user-height');
-        const repeaterHeightInput = document.getElementById('repeater-height');
-        const radiusInput = document.getElementById('radius');
-        const csvUpload = document.getElementById('csv-upload');
-        const addMarkerBtn = document.getElementById('addMarkerBtn');
-        const resetLocationBtn = document.getElementById('resetLocationBtn');
-        const clearDataBtn = document.getElementById('clearDataBtn');
-        const customMarkerInputContainer = document.getElementById('custom-marker-input-container');
-        const customMarkerNameInput = document.getElementById('custom-marker-name');
-        const losFilterCheckbox = document.getElementById('los-filter-checkbox');
-        const radiusToggleCheckbox = document.getElementById('radius-toggle-checkbox');
-        const filterStatusDiv = document.getElementById('filter-status');
-        const repeaterListDiv = document.getElementById('repeater-list');
-        const customListDiv = document.getElementById('custom-list');
-        const losResultContainer = document.getElementById('los-result-container');
-        const selectedRepeaterInfoDiv = document.getElementById('selected-repeater-info');
-        const profileChartCanvas = document.getElementById('profileChart');
-        const setSelect = document.getElementById('set-select');
-        const saveSetBtn = document.getElementById('saveSetBtn');
-        const deleteSetBtn = document.getElementById('deleteSetBtn');
-        const setNameInput = document.getElementById('set-name-input');
-        const setErrorMsg = document.getElementById('set-error-msg');
-        const deleteConfirmationDiv = document.getElementById('delete-confirmation');
-        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
-        const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+        let latInput, lonInput, userHeightInput, repeaterHeightInput, gpxUpload,
+            addMarkerBtn, resetLocationBtn,
+            customMarkerInputContainer, customMarkerNameInput, losFilterCheckbox, filterStatusDiv,
+            repeaterListDiv, customListDiv, losResultContainer, selectedRepeaterInfoDiv,
+            profileChartCanvas;
 
         // --- Map and Chart Initialization ---
         let map;
-        let userMarker, repeaterMarker, pathLine, searchRadiusCircle;
+        let userMarker, repeaterMarker, pathLine;
         let profileChart;
         let markerClusterGroup;
         let customMarkerLayer;
@@ -229,33 +227,62 @@
 
         // --- Initial Setup ---
         document.addEventListener('DOMContentLoaded', () => {
+            // Assign DOM elements
+            latInput = document.getElementById('latitude');
+            lonInput = document.getElementById('longitude');
+            userHeightInput = document.getElementById('user-height');
+            repeaterHeightInput = document.getElementById('repeater-height');
+            gpxUpload = document.getElementById('gpx-upload');
+            addMarkerBtn = document.getElementById('addMarkerBtn');
+            resetLocationBtn = document.getElementById('resetLocationBtn');
+            customMarkerInputContainer = document.getElementById('custom-marker-input-container');
+            customMarkerNameInput = document.getElementById('custom-marker-name');
+            losFilterCheckbox = document.getElementById('los-filter-checkbox');
+            filterStatusDiv = document.getElementById('filter-status');
+            repeaterListDiv = document.getElementById('repeater-list');
+            customListDiv = document.getElementById('custom-list');
+            losResultContainer = document.getElementById('los-result-container');
+            selectedRepeaterInfoDiv = document.getElementById('selected-repeater-info');
+            profileChartCanvas = document.getElementById('profileChart');
+            
+            // Initialize map
             map = L.map('map').setView([DEFAULT_LAT, DEFAULT_LON], 9);
             L.tileLayer(TILE_URL, { attribution: TILE_ATTRIBUTION }).addTo(map);
 
             customMarkerLayer = L.layerGroup().addTo(map);
 
+            // Set initial location and load data
             setLocation(DEFAULT_LAT, DEFAULT_LON);
             requestUserGeolocation();
             loadFromLocalStorage();
 
+            // Attach event listeners
             map.on('click', onMapClick);
+            gpxUpload.addEventListener('change', handleFileUpload);
+            losFilterCheckbox.addEventListener('change', handleLOSFilterToggle);
+            addMarkerBtn.addEventListener('click', () => togglePlaceMarkerMode('custom'));
+            resetLocationBtn.addEventListener('click', requestUserGeolocation);
+            userHeightInput.addEventListener('input', () => { if (lastAnalyzedTarget) analyzePath(lastAnalyzedTarget, getCurrentCoords()); });
+            
+            repeaterHeightInput.addEventListener('focus', (e) => {
+                previousDefaultRepeaterHeight = parseFloat(e.target.value) || 30;
+            });
+            repeaterHeightInput.addEventListener('input', handleDefaultRepeaterHeightChange);
+            
+            // --- Event Listeners for both Desktop and Mobile "Manage Sets" ---
+            ['desktop', 'mobile'].forEach(view => {
+                document.getElementById(`saveSetBtn-${view}`).addEventListener('click', saveCurrentSet);
+                document.getElementById(`deleteSetBtn-${view}`).addEventListener('click', () => {
+                    document.getElementById(`delete-confirmation-${view}`).classList.remove('hidden');
+                });
+                document.getElementById(`confirmDeleteBtn-${view}`).addEventListener('click', deleteCurrentSet);
+                document.getElementById(`cancelDeleteBtn-${view}`).addEventListener('click', () => {
+                     document.getElementById(`delete-confirmation-${view}`).classList.add('hidden');
+                });
+                document.getElementById(`set-select-${view}`).addEventListener('change', loadSelectedSet);
+                document.getElementById(`clearDataBtn-${view}`).addEventListener('click', clearLocalStorage);
+            });
         });
-
-        // --- Event Listeners ---
-        csvUpload.addEventListener('change', handleFileUpload);
-        losFilterCheckbox.addEventListener('change', handleLOSFilterToggle);
-        radiusInput.addEventListener('input', () => drawSearchRadius(getCurrentCoords()));
-        addMarkerBtn.addEventListener('click', togglePlaceMarkerMode);
-        resetLocationBtn.addEventListener('click', requestUserGeolocation);
-        clearDataBtn.addEventListener('click', clearLocalStorage);
-        radiusToggleCheckbox.addEventListener('change', () => drawSearchRadius(getCurrentCoords()));
-        userHeightInput.addEventListener('input', () => { if (lastAnalyzedTarget) analyzePath(lastAnalyzedTarget, getCurrentCoords()); });
-        repeaterHeightInput.addEventListener('input', () => { if (lastAnalyzedTarget) analyzePath(lastAnalyzedTarget, getCurrentCoords()); });
-        saveSetBtn.addEventListener('click', saveCurrentSet);
-        deleteSetBtn.addEventListener('click', () => { deleteConfirmationDiv.classList.remove('hidden'); });
-        confirmDeleteBtn.addEventListener('click', deleteCurrentSet);
-        cancelDeleteBtn.addEventListener('click', () => { deleteConfirmationDiv.classList.add('hidden'); });
-        setSelect.addEventListener('change', loadSelectedSet);
 
 
         // --- Core Functions ---
@@ -280,124 +307,112 @@
             const file = event.target.files[0];
             if (!file) return;
 
-            repeaterListDiv.innerHTML = `<div class="p-3"><div class="flex items-center"><div class="loading-spinner !w-4 !h-4 mr-2"></div><span>Parsing CSV...</span></div></div>`;
+            repeaterListDiv.innerHTML = `<div class="p-3"><div class="flex items-center"><div class="loading-spinner !w-4 !h-4 mr-2"></div><span>Parsing GPX...</span></div></div>`;
             
-            Papa.parse(file, {
-                header: true,
-                skipEmptyLines: true,
-                complete: async (results) => {
-                    try {
-                        const parsedData = results.data.map((row, index) => {
-                            if (!row['Location'] || !row['State']) {
-                                throw new Error(`Row ${index + 2} is missing 'Location' or 'State' column.`);
-                            }
-                            return {
-                                id: index,
-                                callsign: row['Call'] || 'N/A',
-                                outputFreq: row['Output Freq'] || 'N/A',
-                                inputFreq: row['Input Freq'] || 'N/A',
-                                offset: row['Offset'] || 'N/A',
-                                uplinkTone: row['Uplink Tone'] || 'N/A',
-                                downlinkTone: row['Downlink Tone'] || 'N/A',
-                                modes: row['Modes'] || 'N/A',
-                                location: `${row['Location'].trim()}, ${row['State'].trim()}`,
-                                state: row['State'].trim().toLowerCase()
-                            };
-                        });
-
-                        await geocodeAndDisplayData(parsedData);
-
-                    } catch (error) {
-                        filterStatusDiv.textContent = `Error parsing CSV: ${error.message}`;
-                        repeaterListDiv.innerHTML = '<p class="p-3 text-red-500">Failed to parse CSV file. Please check format.</p>';
-                    }
-                },
-                error: (error) => {
-                    filterStatusDiv.textContent = `Error reading file: ${error.message}`;
-                    repeaterListDiv.innerHTML = '<p class="p-3 text-red-500">Could not read the uploaded file.</p>';
-                }
-            });
-        }
-
-        async function geocodeAndDisplayData(parsedData) {
-            const uniqueLocations = [...new Set(parsedData.map(item => item.location))];
-            const locationCoords = new Map();
-            let geocodedCount = 0;
-            repeaterData = [];
-
-            for (let i = 0; i < uniqueLocations.length; i++) {
-                const location = uniqueLocations[i];
-                filterStatusDiv.innerHTML = `<div class="flex items-center"><div class="loading-spinner !w-4 !h-4 mr-2"></div><span>Geocoding ${i + 1} of ${uniqueLocations.length}: ${location}</span></div>`;
-                const state = parsedData.find(p => p.location === location).state;
-                const coords = await geocodeLocation(location, state);
-                
-                if (coords) {
-                    locationCoords.set(location, coords);
-                    const newRepeaters = parsedData
-                        .filter(r => r.location === location)
-                        .map(repeater => ({ ...repeater, ...coords }));
-                    
-                    repeaterData.push(...newRepeaters);
-                    geocodedCount += newRepeaters.length;
-                    
-                    displayRepeaters(repeaterData, getCurrentCoords());
-                } else {
-                    console.warn(`Could not geocode: ${location}`);
-                }
-            }
-
-            filterStatusDiv.textContent = `Loaded ${geocodedCount} repeaters. Please save this as a new set.`;
-            
-            if (losFilterCheckbox.checked) {
-                runLOSFilterAnalysis();
-            }
-        }
-
-        async function geocodeLocation(location, state) {
-            let url;
-            const isCanadian = CANADIAN_PROVINCES.hasOwnProperty(state);
-            const locationName = location.split(',')[0].trim();
-            const userCoords = getCurrentCoords();
-
-            if (isCanadian) {
-                const provinceCode = CANADIAN_PROVINCES[state];
-                const radiusKm = parseFloat(radiusInput.value) || 100;
-                const degRadius = radiusKm / 111.32;
-                const bbox = `${userCoords.lon - degRadius},${userCoords.lat - degRadius},${userCoords.lon + degRadius},${userCoords.lat + degRadius}`;
-                url = `https://geogratis.gc.ca/services/geoname/en/geonames.json?q=${encodeURIComponent(locationName)}&province=${provinceCode}&bbox=${bbox}`;
-            } else {
-                url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`;
-            }
-
-            let response;
-            const maxRetries = 3;
-            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
                 try {
-                    if (!isCanadian && attempt > 1) await delay(1100);
-                    response = await fetch(url);
-                    if (response.ok) {
-                        const data = await response.json();
-                        if (isCanadian && data.items && data.items.length > 0) {
-                            return { lat: data.items[0].latitude, lon: data.items[0].longitude };
-                        } else if (!isCanadian && data.length > 0) {
-                            return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
-                        }
-                        return null;
-                    }
-                    if (response.status === 429 && attempt < maxRetries) {
-                        const retryAfter = attempt * 1000;
-                        console.warn(`Geocoding rate limited for ${location}. Retrying in ${retryAfter}ms...`);
-                        await delay(retryAfter);
-                    } else if (attempt >= maxRetries) {
-                         throw new Error(`Geocoding API request failed. Status: ${response.status}`);
+                    repeaterData = parseGPX(e.target.result);
+                    filterStatusDiv.textContent = `Loaded ${repeaterData.length} repeaters. Please save this as a new set.`;
+                    displayRepeaters(repeaterData, getCurrentCoords());
+                    if (losFilterCheckbox.checked) {
+                        runLOSFilterAnalysis();
                     }
                 } catch (error) {
-                    console.error(`Geocoding attempt ${attempt} failed for ${location}:`, error);
-                    if (attempt >= maxRetries) return null;
-                    await delay(attempt * 1000);
+                    filterStatusDiv.textContent = `Error parsing GPX: ${error.message}`;
+                    repeaterListDiv.innerHTML = '<p class="p-3 text-red-500">Failed to parse GPX file. Please check format.</p>';
                 }
+            };
+            reader.readAsText(file);
+        }
+
+        function parseGPX(gpxString) {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(gpxString, "text/xml");
+            const waypoints = xmlDoc.getElementsByTagName("wpt");
+            const data = [];
+            const defaultHeight = parseFloat(repeaterHeightInput.value) || 30;
+
+            for (let i = 0; i < waypoints.length; i++) {
+                const wpt = waypoints[i];
+                const nameNode = wpt.getElementsByTagName("name")[0];
+                const cmtNode = wpt.getElementsByTagName("cmt")[0];
+                
+                if (!nameNode || !cmtNode) continue;
+                
+                const nameStr = nameNode.textContent;
+                const parts = nameStr.split(/\s+/);
+
+                let callsign = parts[0] || 'N/A';
+                let outputFreqStr = 'N/A';
+                let offsetSign = 'N/A';
+                let uplinkTone = 'N/A';
+
+                const infoParts = parts.slice(1);
+                let freqIndex = -1;
+
+                // First, find the frequency. It's the most distinct part (e.g., > 20 MHz).
+                for (let j = 0; j < infoParts.length; j++) {
+                    const part = infoParts[j];
+                    const num = parseFloat(part);
+                    if (!isNaN(num) && num > 20) {
+                        outputFreqStr = part.replace(/[+-]$/, ''); // Clean trailing +/-
+                        if (part.endsWith('+') || part.endsWith('-')) {
+                            offsetSign = part.slice(-1);
+                        }
+                        freqIndex = j;
+                        break;
+                    }
+                }
+
+                // If we found a frequency, remove it and process the rest.
+                if (freqIndex !== -1) {
+                    infoParts.splice(freqIndex, 1);
+                }
+
+                // Now, look for a standalone offset and a tone in the remaining parts.
+                for (const part of infoParts) {
+                    if (part === '+' || part === '-') {
+                        offsetSign = part; // This will overwrite an attached sign, which is fine.
+                    } else {
+                        // Anything else is assumed to be the tone.
+                        uplinkTone = part;
+                    }
+                }
+
+                const outputFreq = parseFloat(outputFreqStr);
+                let inputFreq = 'N/A';
+
+                // Calculate input frequency if we have all the necessary parts.
+                if (!isNaN(outputFreq) && (offsetSign === '+' || offsetSign === '-')) {
+                    let standardOffset = 0.6; // Default to VHF 2m offset
+                    if (outputFreq >= 440 && outputFreq <= 450) {
+                        standardOffset = 5.0; // UHF 70cm offset
+                    } else if (outputFreq >= 222 && outputFreq <= 225) {
+                        standardOffset = 1.6; // 1.25m band offset
+                    }
+
+                    if (offsetSign === '+') {
+                        inputFreq = (outputFreq + standardOffset).toFixed(4);
+                    } else {
+                        inputFreq = (outputFreq - standardOffset).toFixed(4);
+                    }
+                }
+
+                data.push({
+                    id: `repeater-${i}`,
+                    lat: parseFloat(wpt.getAttribute("lat")),
+                    lon: parseFloat(wpt.getAttribute("lon")),
+                    callsign: callsign,
+                    outputFreq: outputFreqStr,
+                    inputFreq: inputFreq,
+                    offset: offsetSign,
+                    uplinkTone: uplinkTone,
+                    antennaHeight: defaultHeight,
+                    location: cmtNode.textContent.replace(callsign, '').replace('OPEN', '').trim()
+                });
             }
-            return null;
+            return data;
         }
         
         const delay = ms => new Promise(res => setTimeout(res, ms));
@@ -406,7 +421,7 @@
             localStorage.setItem('losFilterState', event.target.checked);
             if (repeaterData.length === 0) {
                 if(event.target.checked) {
-                    filterStatusDiv.textContent = "Please upload a repeater CSV file first.";
+                    filterStatusDiv.textContent = "Please upload a repeater GPX file first.";
                     setTimeout(() => filterStatusDiv.textContent = '', 3000);
                 }
                 event.target.checked = false;
@@ -414,7 +429,7 @@
             }
 
             if (event.target.checked) {
-                if (repeaterData.every(r => typeof r.isVisible === 'boolean')) {
+                if (repeaterData.every(r => typeof r.isVisible === 'boolean' || r.locationUnknown)) {
                     const visibleRepeaters = repeaterData.filter(r => r.isVisible);
                     filterStatusDiv.textContent = `Showing ${visibleRepeaters.length} of ${repeaterData.length} repeaters with clear Line-of-Sight.`;
                     displayRepeaters(visibleRepeaters, getCurrentCoords());
@@ -430,22 +445,40 @@
         async function runLOSFilterAnalysis() {
             const userCoords = getCurrentCoords();
             let completedCount = 0;
-            const totalRepeaters = repeaterData.length;
+            const repeatersToAnalyze = repeaterData.filter(r => !r.locationUnknown);
+            const totalRepeaters = repeatersToAnalyze.length;
+            let visibleRepeaters = []; // Start with an empty list
 
-            const analysisPromises = repeaterData.map(repeater => 
-                getLOSForRepeater(repeater, userCoords).then(result => {
-                    repeater.isVisible = result.isVisible;
-                    completedCount++;
-                    filterStatusDiv.innerHTML = `<div class="flex items-center"><div class="loading-spinner !w-4 !h-4 mr-2"></div><span>Analyzed ${completedCount} of ${totalRepeaters}...</span></div>`;
-                    return result;
-                })
-            );
+            // Clear the list initially to show progress from a blank slate
+            displayRepeaters([], userCoords);
 
-            await Promise.all(analysisPromises);
-            
+            for (const repeater of repeatersToAnalyze) {
+                // If the checkbox was unchecked during analysis, stop the process.
+                if (!losFilterCheckbox.checked) {
+                    filterStatusDiv.textContent = 'Analysis cancelled.';
+                    displayRepeaters(repeaterData, userCoords); // Show all repeaters again
+                    return;
+                }
+
+                const result = await getLOSForRepeater(repeater, userCoords);
+                repeater.isVisible = result.isVisible;
+                completedCount++;
+
+                if (repeater.isVisible) {
+                    // Add the newly found visible repeater to our list
+                    visibleRepeaters.push(repeater);
+                    // Re-display the updated list of visible repeaters
+                    displayRepeaters(visibleRepeaters, userCoords);
+                }
+
+                // Update the status message
+                filterStatusDiv.innerHTML = `<div class="flex items-center"><div class="loading-spinner !w-4 !h-4 mr-2"></div><span>Analyzed ${completedCount} of ${totalRepeaters}... Found ${visibleRepeaters.length} with LOS.</span></div>`;
+            }
+
+            // Final update after the loop
             localStorage.setItem('repeaterData', JSON.stringify(repeaterData));
-            const visibleRepeaters = repeaterData.filter(r => r.isVisible);
-            filterStatusDiv.textContent = `Showing ${visibleRepeaters.length} of ${totalRepeaters} repeaters with clear Line-of-Sight.`;
+            filterStatusDiv.textContent = `Showing ${visibleRepeaters.length} of ${repeaterData.length} repeaters with clear Line-of-Sight.`;
+            // Final display call to ensure everything is sorted correctly
             displayRepeaters(visibleRepeaters, userCoords);
         }
 
@@ -454,7 +487,7 @@
                 const points = getPointsOnPath(userCoords, { lat: repeater.lat, lon: repeater.lon }, 50);
                 const elevationData = await getElevationProfile(points);
                 const userAntennaHeight = parseFloat(userHeightInput.value) || 10;
-                const repeaterAntennaHeight = parseFloat(repeaterHeightInput.value) || 30;
+                const repeaterAntennaHeight = parseFloat(repeater.antennaHeight) || parseFloat(repeaterHeightInput.value) || 30;
                 const { isVisible } = calculateLineOfSight(elevationData, userAntennaHeight, repeaterAntennaHeight);
                 return { repeater, isVisible };
             } catch (error) {
@@ -464,6 +497,7 @@
         }
         
         function displayRepeaters(repeaters, userCoords) {
+            const knownRepeaters = repeaters.filter(r => !r.locationUnknown);
             repeaterListDiv.innerHTML = '';
             
             if (markerClusterGroup) {
@@ -473,20 +507,21 @@
                 map.addLayer(markerClusterGroup);
             }
 
-            if (repeaters.length === 0 && losFilterCheckbox.checked) {
-                repeaterListDiv.innerHTML = '<p class="text-gray-500 p-3">No repeaters with clear LOS found yet...</p>';
-            } else if (repeaters.length === 0) {
-                 repeaterListDiv.innerHTML = '<p class="text-gray-500 p-3">No repeaters to display.</p>';
+            if (knownRepeaters.length === 0 && losFilterCheckbox.checked) {
+                 repeaterListDiv.innerHTML = '<p class="p-3 text-gray-500">No repeaters found with Line-of-Sight.</p>';
+            } else if (knownRepeaters.length === 0) {
+                 repeaterListDiv.innerHTML = '<p class="p-3 text-gray-500">No repeaters to display.</p>';
             }
 
-            repeaters.sort((a, b) => getDistance(userCoords, a) - getDistance(userCoords, b));
 
-            repeaters.forEach(repeater => {
+            knownRepeaters.sort((a, b) => getDistance(userCoords, a) - getDistance(userCoords, b));
+
+            knownRepeaters.forEach(repeater => {
                 const distance = getDistance(userCoords, repeater).toFixed(1);
                 const item = document.createElement('div');
-                item.className = 'p-3 border rounded-lg hover:bg-gray-100 cursor-pointer';
+                item.className = 'p-3 border rounded-lg hover:bg-gray-100';
                 item.innerHTML = `
-                    <div class="flex justify-between items-start">
+                    <div class="flex justify-between items-start cursor-pointer" data-repeater-id="${repeater.id}">
                         <div>
                             <p class="font-bold">${repeater.callsign}</p>
                             <p class="text-sm text-gray-600">${repeater.location}</p>
@@ -496,22 +531,53 @@
                     <div class="mt-2 text-xs text-gray-700 grid grid-cols-2 gap-x-4 gap-y-1">
                         <span><span class="font-semibold">Output:</span> ${repeater.outputFreq} (${repeater.offset})</span>
                         <span><span class="font-semibold">Input:</span> ${repeater.inputFreq}</span>
-                        ${repeater.uplinkTone ? `<span><span class="font-semibold">Tone:</span> ${repeater.uplinkTone}</span>` : ''}
-                        ${repeater.modes ? `<span class="col-span-2"><span class="font-semibold">Modes:</span> ${repeater.modes}</span>` : ''}
+                        ${repeater.uplinkTone !== 'N/A' ? `<span><span class="font-semibold">Tone:</span> ${repeater.uplinkTone}</span>` : ''}
+                        <div class="col-span-2 mt-1">
+                            <label for="height-${repeater.id}" class="text-xs font-medium">Antenna Ht (m):</label>
+                            <input type="number" id="height-${repeater.id}" value="${repeater.antennaHeight}" class="w-20 ml-1 px-1 py-0.5 text-xs border border-gray-300 rounded">
+                        </div>
                     </div>
                 `;
-                item.onclick = () => analyzePath(repeater, getCurrentCoords());
+                item.querySelector(`[data-repeater-id="${repeater.id}"]`).onclick = () => analyzePath(repeater, getCurrentCoords());
+                
+                const heightInput = item.querySelector(`#height-${repeater.id}`);
+                heightInput.addEventListener('input', (e) => {
+                    const newHeight = parseFloat(e.target.value);
+                    const targetRepeater = repeaterData.find(r => r.id === repeater.id);
+                    if (targetRepeater && !isNaN(newHeight)) {
+                        targetRepeater.antennaHeight = newHeight;
+                        if (lastAnalyzedTarget && lastAnalyzedTarget.id === repeater.id) {
+                            analyzePath(targetRepeater, getCurrentCoords());
+                        }
+                    }
+                });
+
                 repeaterListDiv.appendChild(item);
 
-                const marker = L.marker([repeater.lat, repeater.lon])
+                const marker = L.marker([repeater.lat, repeater.lon], { draggable: true })
                     .bindPopup(`<b>${repeater.callsign}</b><br>${repeater.location}<br>${repeater.outputFreq} MHz<br><button class="mt-2 p-1 bg-indigo-500 text-white rounded text-xs" onclick='analyzePathFromPopup(${JSON.stringify(repeater)})'>Check LOS</button>`);
                 
+                marker.on('dragend', (event) => {
+                    const newCoords = event.target.getLatLng();
+                    repeater.lat = newCoords.lat;
+                    repeater.lon = newCoords.lng;
+                    repeater.location = `Custom Position (${newCoords.lat.toFixed(3)}, ${newCoords.lng.toFixed(3)})`;
+                    displayRepeaters(repeaterData, getCurrentCoords());
+                    if (lastAnalyzedTarget && lastAnalyzedTarget.id === repeater.id) {
+                        analyzePath(repeater, getCurrentCoords());
+                    }
+                });
+
                 markerClusterGroup.addLayer(marker);
             });
         }
         
         function analyzePathFromPopup(repeater) {
-            analyzePath(repeater, getCurrentCoords());
+            // Find the full repeater object from our data array to get the latest height
+            const fullRepeaterData = repeaterData.find(r => r.id === repeater.id);
+            if(fullRepeaterData) {
+                analyzePath(fullRepeaterData, getCurrentCoords());
+            }
             map.closePopup();
         }
 
@@ -530,14 +596,12 @@
 
             userMarker.bindPopup('Your Location').openPopup();
             map.setView([lat, lon], 9);
-            drawSearchRadius({lat, lon});
 
             userMarker.on('dragend', function(event) {
                 const newCoords = event.target.getLatLng();
                 const standardizedCoords = { lat: newCoords.lat, lon: newCoords.lng };
                 latInput.value = standardizedCoords.lat.toFixed(5);
                 lonInput.value = standardizedCoords.lon.toFixed(5);
-                drawSearchRadius(standardizedCoords);
                 
                 repeaterData.forEach(r => delete r.isVisible);
                 localStorage.setItem('repeaterData', JSON.stringify(repeaterData));
@@ -553,26 +617,6 @@
             });
         }
         
-        function drawSearchRadius(coords) {
-            if (searchRadiusCircle) {
-                map.removeLayer(searchRadiusCircle);
-            }
-            if (radiusToggleCheckbox.checked) {
-                const radiusMeters = (parseFloat(radiusInput.value) || 100) * 1000;
-                if (coords.lat === undefined || coords.lon === undefined) {
-                    console.error("Invalid coordinates for search radius:", coords);
-                    return;
-                }
-                searchRadiusCircle = L.circle([coords.lat, coords.lon], {
-                    radius: radiusMeters,
-                    color: 'blue',
-                    weight: 2,
-                    opacity: 0.5,
-                    fillOpacity: 0.05
-                }).addTo(map);
-            }
-        }
-
         function getCurrentCoords() {
             return {
                 lat: parseFloat(latInput.value),
@@ -602,7 +646,7 @@
             try {
                 const elevationData = await getElevationProfile(points);
                 const userAntennaHeight = parseFloat(userHeightInput.value) || 10;
-                const repeaterAntennaHeight = parseFloat(repeaterHeightInput.value) || 30;
+                const repeaterAntennaHeight = parseFloat(repeater.antennaHeight) || parseFloat(repeaterHeightInput.value) || 30;
                 const { isVisible, obstructionPoint } = calculateLineOfSight(elevationData, userAntennaHeight, repeaterAntennaHeight);
 
                 displayLosResult(isVisible, obstructionPoint, userCoords, repeater);
@@ -711,8 +755,8 @@
                     <div class="mt-2 text-sm text-gray-800 grid grid-cols-2 gap-x-4 gap-y-1">
                         <span><span class="font-semibold">Output:</span> ${repeater.outputFreq || 'N/A'} (${repeater.offset || 'N/A'})</span>
                         <span><span class="font-semibold">Input:</span> ${repeater.inputFreq || 'N/A'}</span>
-                        ${repeater.uplinkTone ? `<span><span class="font-semibold">Tone:</span> ${repeater.uplinkTone}</span>` : ''}
-                        ${repeater.modes ? `<span class="col-span-2"><span class="font-semibold">Modes:</span> ${repeater.modes}</span>` : ''}
+                        ${repeater.uplinkTone !== 'N/A' ? `<span><span class="font-semibold">Tone:</span> ${repeater.uplinkTone}</span>` : ''}
+                        <span><span class="font-semibold">Antenna Ht:</span> ${repeater.antennaHeight} m</span>
                     </div>
                 </div>
             `;
@@ -805,15 +849,20 @@
         
         window.analyzePathFromPopup = analyzePathFromPopup;
 
-        function togglePlaceMarkerMode() {
+        function togglePlaceMarkerMode(mode, id = null) {
             isPlacingMarker = !isPlacingMarker;
+            placementInfo.mode = isPlacingMarker ? mode : null;
+            placementInfo.id = id;
+            
             const mapContainer = document.getElementById('map');
             if (isPlacingMarker) {
                 mapContainer.classList.add('crosshair-cursor');
                 addMarkerBtn.textContent = 'Cancel Placement';
                 addMarkerBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
                 addMarkerBtn.classList.add('bg-red-600', 'hover:bg-red-700');
-                customMarkerInputContainer.classList.remove('hidden');
+                if (placementInfo.mode === 'custom') {
+                    customMarkerInputContainer.classList.remove('hidden');
+                }
             } else {
                 mapContainer.classList.remove('crosshair-cursor');
                 addMarkerBtn.textContent = 'Place Custom Marker';
@@ -826,31 +875,46 @@
         function onMapClick(e) {
             if (!isPlacingMarker) return;
             
-            const name = customMarkerNameInput.value.trim() || `Custom Marker ${customMarkers.length + 1}`;
-            const newMarkerData = {
-                id: `custom-${Date.now()}`,
-                callsign: name,
-                lat: e.latlng.lat,
-                lon: e.latlng.lng,
-                location: `Custom Marker (${e.latlng.lat.toFixed(3)}, ${e.latlng.lng.toFixed(3)})`
-            };
-            customMarkers.push(newMarkerData);
-            displayCustomMarkers();
+            if (placementInfo.mode === 'custom') {
+                const name = customMarkerNameInput.value.trim() || `Custom Marker ${customMarkers.length + 1}`;
+                const newMarkerData = {
+                    id: `custom-${Date.now()}`,
+                    callsign: name,
+                    lat: e.latlng.lat,
+                    lon: e.latlng.lng,
+                    location: `Custom Marker (${e.latlng.lat.toFixed(3)}, ${e.latlng.lng.toFixed(3)})`,
+                    antennaHeight: parseFloat(repeaterHeightInput.value) || 30
+                };
+                customMarkers.push(newMarkerData);
+                displayCustomMarkers();
+                customMarkerNameInput.value = '';
+            } else if (placementInfo.mode === 'repeater') {
+                const repeater = repeaterData.find(r => r.id === placementInfo.id);
+                if (repeater) {
+                    repeater.lat = e.latlng.lat;
+                    repeater.lon = e.latlng.lng;
+                    delete repeater.locationUnknown;
+                    displayRepeaters(repeaterData, getCurrentCoords());
+                }
+            }
             
-            customMarkerNameInput.value = '';
-            togglePlaceMarkerMode(); // Exit placement mode
+            togglePlaceMarkerMode(null); // Exit placement mode
         }
 
         function displayCustomMarkers() {
             customListDiv.innerHTML = '';
             customMarkerLayer.clearLayers();
 
+            if (customMarkers.length === 0) {
+                customListDiv.innerHTML = '<p class="p-3 text-gray-500">Click "Place Custom Marker" to add locations.</p>';
+            }
+
             customMarkers.forEach(markerData => {
                 const userCoords = getCurrentCoords();
                 const distance = getDistance(userCoords, markerData).toFixed(1);
 
                 const item = document.createElement('div');
-                item.className = 'p-3 border rounded-lg hover:bg-gray-100 cursor-pointer';
+                item.className = 'p-3 border rounded-lg hover:bg-gray-100';
                 item.innerHTML = `
                     <div class="flex justify-between items-start">
                         <div class="flex-grow cursor-pointer" data-id="${markerData.id}">
@@ -859,18 +923,35 @@
                         </div>
                         <button class="delete-custom-marker text-red-500 hover:text-red-700 font-bold ml-2 p-1">&times;</button>
                     </div>
+                     <div class="mt-1">
+                        <label for="height-${markerData.id}" class="text-xs font-medium">Antenna Ht (m):</label>
+                        <input type="number" id="height-${markerData.id}" value="${markerData.antennaHeight}" class="w-20 ml-1 px-1 py-0.5 text-xs border border-gray-300 rounded">
+                    </div>
                 `;
-                item.querySelector('.cursor-pointer').onclick = () => analyzePath(markerData, userCoords);
+                item.querySelector('.flex-grow').onclick = () => analyzePath(markerData, userCoords);
                 item.querySelector('.delete-custom-marker').onclick = (e) => {
                     e.stopPropagation(); // Prevent the click from triggering the analysis
                     deleteCustomMarker(markerData.id);
                 };
+
+                const heightInput = item.querySelector(`#height-${markerData.id}`);
+                heightInput.addEventListener('input', (e) => {
+                    const newHeight = parseFloat(e.target.value);
+                    const targetMarker = customMarkers.find(m => m.id === markerData.id);
+                    if (targetMarker && !isNaN(newHeight)) {
+                        targetMarker.antennaHeight = newHeight;
+                        if (lastAnalyzedTarget && lastAnalyzedTarget.id === markerData.id) {
+                            analyzePath(targetMarker, getCurrentCoords());
+                        }
+                    }
+                });
+
                 customListDiv.appendChild(item);
 
                 const marker = L.marker([markerData.lat, markerData.lon], {
                     draggable: true,
                     icon: L.icon({
-                        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+                        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
                         shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
                         iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
                     })
@@ -882,9 +963,9 @@
                     markerData.lon = newCoords.lng;
                     markerData.location = `Custom Marker (${newCoords.lat.toFixed(3)}, ${newCoords.lng.toFixed(3)})`;
                     displayCustomMarkers();
-                    losResultContainer.innerHTML = '<p class="text-gray-500">Marker moved. Select a location to re-analyze.</p>';
-                    if(profileChart) profileChart.destroy();
-                    if(pathLine) map.removeLayer(pathLine);
+                    if (lastAnalyzedTarget && lastAnalyzedTarget.id === markerData.id) {
+                        analyzePath(markerData, getCurrentCoords());
+                    }
                 });
             });
         }
@@ -892,7 +973,6 @@
         function deleteCustomMarker(markerId) {
             const index = customMarkers.findIndex(m => m.id === markerId);
             if (index > -1) {
-                // If the deleted marker is the one currently being analyzed, clear the analysis
                 if (lastAnalyzedTarget && lastAnalyzedTarget.id === markerId) {
                     lastAnalyzedTarget = null;
                     if (repeaterMarker) map.removeLayer(repeaterMarker);
@@ -900,6 +980,7 @@
                     if (pathLine) map.removeLayer(pathLine);
                     if (profileChart) profileChart.destroy();
                     losResultContainer.innerHTML = '<p class="text-gray-500">Select a repeater from the list to analyze the path.</p>';
+                    selectedRepeaterInfoDiv.innerHTML = '<p class="text-gray-500">Select a repeater to see its details here.</p>';
                 }
                 customMarkers.splice(index, 1);
                 displayCustomMarkers();
@@ -907,33 +988,37 @@
         }
         
         function clearLocalStorage() {
-            localStorage.clear();
-            window.location.reload();
+            if(confirm("Are you sure you want to delete all saved data? This cannot be undone.")) {
+                localStorage.clear();
+                window.location.reload();
+            }
         }
 
-        function loadFromLocalStorage() {
-            const savedSets = JSON.parse(localStorage.getItem('repeaterSets')) || {};
-            const lastSetName = localStorage.getItem('lastRepeaterSet');
-            
-            updateSetSelector(Object.keys(savedSets), lastSetName);
+        function getSetNameInput() {
+            const desktopInput = document.getElementById('set-name-input-desktop');
+            const mobileInput = document.getElementById('set-name-input-mobile');
+            return window.innerWidth < 1024 ? mobileInput : desktopInput;
+        }
 
-            if (lastSetName && savedSets[lastSetName]) {
-                repeaterData = savedSets[lastSetName].repeaterData || [];
-                customMarkers = savedSets[lastSetName].customMarkers || [];
+        function getSetSelect() {
+            const desktopSelect = document.getElementById('set-select-desktop');
+            const mobileSelect = document.getElementById('set-select-mobile');
+            return window.innerWidth < 1024 ? mobileSelect : desktopSelect;
+        }
 
-                filterStatusDiv.textContent = `Loaded set: ${lastSetName}`;
-                displayRepeaters(repeaterData, getCurrentCoords());
-                displayCustomMarkers();
-            }
+        function showSetErrorMessage(show) {
+             document.getElementById('set-error-msg-desktop').classList.toggle('hidden', !show);
+             document.getElementById('set-error-msg-mobile').classList.toggle('hidden', !show);
         }
 
         function saveCurrentSet() {
+            const setNameInput = getSetNameInput();
             const setName = setNameInput.value.trim();
             if (!setName) {
-                setErrorMsg.classList.remove('hidden');
+                showSetErrorMessage(true);
                 return;
             }
-            setErrorMsg.classList.add('hidden');
+            showSetErrorMessage(false);
 
             const savedSets = JSON.parse(localStorage.getItem('repeaterSets')) || {};
             savedSets[setName] = {
@@ -950,6 +1035,7 @@
         }
 
         function deleteCurrentSet() {
+            const setSelect = getSetSelect();
             const setName = setSelect.value;
             if (!setName) {
                 filterStatusDiv.textContent = "No set selected to delete.";
@@ -968,8 +1054,8 @@
             window.location.reload();
         }
 
-        function loadSelectedSet() {
-            const setName = setSelect.value;
+        function loadSelectedSet(event) {
+            const setName = event.target.value;
             if (!setName) return;
 
             const savedSets = JSON.parse(localStorage.getItem('repeaterSets')) || {};
@@ -979,17 +1065,71 @@
             }
         }
 
+        function loadFromLocalStorage() {
+            const savedSets = JSON.parse(localStorage.getItem('repeaterSets')) || {};
+            const lastSetName = localStorage.getItem('lastRepeaterSet');
+            
+            updateSetSelector(Object.keys(savedSets), lastSetName);
+
+            if (lastSetName && savedSets[lastSetName]) {
+                repeaterData = savedSets[lastSetName].repeaterData || [];
+                customMarkers = savedSets[lastSetName].customMarkers || [];
+
+                filterStatusDiv.textContent = `Loaded set: ${lastSetName}`;
+                displayRepeaters(repeaterData, getCurrentCoords());
+                displayCustomMarkers();
+            }
+        }
+
         function updateSetSelector(setNames, currentSet) {
-            setSelect.innerHTML = '<option value="">Select a set...</option>';
-            setNames.forEach(name => {
-                const option = document.createElement('option');
-                option.value = name;
-                option.textContent = name;
-                if (name === currentSet) {
-                    option.selected = true;
-                }
-                setSelect.appendChild(option);
+            ['desktop', 'mobile'].forEach(view => {
+                const setSelect = document.getElementById(`set-select-${view}`);
+                setSelect.innerHTML = '<option value="">Select a set...</option>';
+                setNames.forEach(name => {
+                    const option = document.createElement('option');
+                    option.value = name;
+                    option.textContent = name;
+                    if (name === currentSet) {
+                        option.selected = true;
+                    }
+                    setSelect.appendChild(option);
+                });
             });
+        }
+
+        function handleDefaultRepeaterHeightChange(e) {
+            const newDefaultHeight = parseFloat(e.target.value);
+            if (isNaN(newDefaultHeight)) return;
+
+            // Update any repeater that was using the old default value
+            repeaterData.forEach(repeater => {
+                if (repeater.antennaHeight === previousDefaultRepeaterHeight) {
+                    repeater.antennaHeight = newDefaultHeight;
+                }
+            });
+            
+            // Update custom markers too
+             customMarkers.forEach(marker => {
+                if (marker.antennaHeight === previousDefaultRepeaterHeight) {
+                    marker.antennaHeight = newDefaultHeight;
+                }
+            });
+
+            // Redraw the lists to show the new default values
+            displayRepeaters(repeaterData, getCurrentCoords());
+            displayCustomMarkers();
+
+            // Re-analyze if a target is selected
+            if (lastAnalyzedTarget) {
+                // Find the latest version of the target data
+                const currentTargetData = repeaterData.find(r => r.id === lastAnalyzedTarget.id) || customMarkers.find(m => m.id === lastAnalyzedTarget.id);
+                if(currentTargetData) {
+                   analyzePath(currentTargetData, getCurrentCoords());
+                }
+            }
+            
+            // Update the previous value for the next change
+            previousDefaultRepeaterHeight = newDefaultHeight;
         }
 
     </script>
