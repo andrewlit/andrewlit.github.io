@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Radio LOS Tool</title>
+    <title>Radio LOS & Path Loss Tool</title>
     
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -55,8 +55,8 @@
 
     <div class="container mx-auto p-4 md:p-8 max-w-7xl">
         <header class="text-center mb-8">
-            <h1 class="text-4xl font-bold text-gray-900">Radio LOS Tool</h1>
-            <p class="text-lg text-gray-600 mt-2">Upload a GPX file to analyze repeater line-of-sight.</p>
+            <h1 class="text-4xl font-bold text-gray-900">Radio LOS & Path Loss Tool</h1>
+            <p class="text-lg text-gray-600 mt-2">Analyze repeater line-of-sight and estimate RF path loss.</p>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -69,21 +69,29 @@
                         <label for="gpx-upload" class="block text-sm font-medium text-gray-700">Upload Repeaterbook GPX</label>
                         <input type="file" id="gpx-upload" accept=".gpx" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
                     </div>
-                    <div>
-                        <label for="latitude" class="block text-sm font-medium text-gray-700">Your Latitude</label>
-                        <input type="number" id="latitude" placeholder="e.g., 43.653" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="latitude" class="block text-sm font-medium text-gray-700">Your Latitude</label>
+                            <input type="number" id="latitude" placeholder="e.g., 43.653" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label for="longitude" class="block text-sm font-medium text-gray-700">Your Longitude</label>
+                            <input type="number" id="longitude" placeholder="e.g., -79.383" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
                     </div>
-                    <div>
-                        <label for="longitude" class="block text-sm font-medium text-gray-700">Your Longitude</label>
-                        <input type="number" id="longitude" placeholder="e.g., -79.383" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                     <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="user-height" class="block text-sm font-medium text-gray-700">Your Height (m)</label>
+                            <input type="number" id="user-height" value="10" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label for="repeater-height" class="block text-sm font-medium text-gray-700">Default Ht. (m)</label>
+                            <input type="number" id="repeater-height" value="30" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
                     </div>
-                     <div>
-                        <label for="user-height" class="block text-sm font-medium text-gray-700">Your Antenna Height (meters)</label>
-                        <input type="number" id="user-height" value="10" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                    </div>
-                    <div>
-                        <label for="repeater-height" class="block text-sm font-medium text-gray-700">Default Repeater Antenna Height (meters)</label>
-                        <input type="number" id="repeater-height" value="10" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    <div class="flex items-center">
+                        <input id="curvature-checkbox" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" checked>
+                        <label for="curvature-checkbox" class="ml-2 text-sm font-medium text-gray-700">Earth Curvature</label>
                     </div>
                     <div class="flex space-x-2">
                          <button id="resetLocationBtn" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300">Reset to My Location</button>
@@ -91,7 +99,9 @@
                     </div>
                     <div id="custom-marker-input-container" class="hidden space-y-2 mt-2 border-t pt-4">
                         <label for="custom-marker-name" class="block text-sm font-medium text-gray-700">Custom Marker Name (optional)</label>
-                        <input type="text" id="custom-marker-name" placeholder="Enter name and click map..." class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
+                        <input type="text" id="custom-marker-name" placeholder="Enter name..." class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
+                        <label for="custom-marker-freq" class="block text-sm font-medium text-gray-700">Frequency (MHz)</label>
+                        <input type="number" id="custom-marker-freq" value="146.520" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
                     </div>
                 </div>
                 
@@ -99,10 +109,25 @@
                 <div class="mb-4">
                     <input type="text" id="repeater-search" placeholder="Search callsign, freq, location..." class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
                 </div>
-                <div class="flex items-center mb-4">
-                    <input id="los-filter-checkbox" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                    <label for="los-filter-checkbox" class="ml-2 block text-sm text-gray-900">Show only repeaters with Line-of-Sight</label>
+                <!-- Analysis Filter UI -->
+                <div class="mb-4 p-4 bg-indigo-50 rounded-lg space-y-3">
+                    <div id="filter-controls-grid" class="grid grid-cols-2 gap-4 items-end">
+                        <div>
+                            <label for="filter-mode-select" class="block text-sm font-medium text-gray-700">Filter Mode</label>
+                            <select id="filter-mode-select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                                <option value="none">None</option>
+                                <option value="pathLoss" selected>Path Loss</option>
+                                <option value="los">Line of Sight</option>
+                            </select>
+                        </div>
+                        <div id="path-loss-container">
+                            <label for="max-path-loss-input" class="block text-sm font-medium text-gray-700">Max Loss (dB)</label>
+                            <input type="number" id="max-path-loss-input" value="150" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                    </div>
+                    <button id="run-batch-analysis" class="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 whitespace-nowrap">Analyze All Repeaters</button>
                 </div>
+
                 <div id="filter-status" class="text-sm text-gray-600 mb-2"></div>
                 <div id="repeater-list" class="space-y-2 max-h-60 overflow-y-auto">
                     <p class="p-3 text-gray-500">Upload a GPX file or load a set to see repeater data.</p>
@@ -133,8 +158,8 @@
                          <div id="delete-confirmation-desktop" class="hidden space-y-2 mt-2 border-t pt-4">
                             <p class="text-sm text-center font-semibold">Are you sure? This is permanent.</p>
                              <div class="flex space-x-2">
-                                <button id="confirmDeleteBtn-desktop" class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700">Yes, Delete</button>
-                                <button id="cancelDeleteBtn-desktop" class="w-full bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400">Cancel</button>
+                                 <button id="confirmDeleteBtn-desktop" class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700">Yes, Delete</button>
+                                 <button id="cancelDeleteBtn-desktop" class="w-full bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400">Cancel</button>
                              </div>
                         </div>
                          <div>
@@ -148,14 +173,19 @@
             <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-lg">
                 <div id="map" class="mb-6 border border-gray-200"></div>
                 
-                <h2 class="text-2xl font-semibold mb-4 border-b pb-2">Selected Repeater Details</h2>
+                <h2 class="text-2xl font-semibold mb-4 border-b pb-2">Selected Target Details</h2>
                 <div id="selected-repeater-info" class="p-4 rounded-lg bg-gray-50">
-                    <p class="text-gray-500">Select a repeater to see its details here.</p>
+                    <p class="text-gray-500">Select a target to see its details here.</p>
                 </div>
 
                 <h2 class="text-2xl font-semibold mt-6 mb-4 border-b pb-2">Line-of-Sight Analysis</h2>
                 <div id="los-result-container" class="text-center p-4 rounded-lg bg-gray-50">
-                     <p class="text-gray-500">Select a repeater from the list to analyze the path.</p>
+                     <p class="text-gray-500">Select a target from the list to analyze the path.</p>
+                </div>
+                
+                <h2 class="text-2xl font-semibold mt-6 mb-4 border-b pb-2">RF Path Loss</h2>
+                <div id="path-loss-result-container" class="text-center p-4 rounded-lg bg-gray-50">
+                    <p class="text-gray-500">Path loss is calculated for clear line-of-sight paths.</p>
                 </div>
                 
                 <div class="mt-6">
@@ -184,8 +214,8 @@
                  <div id="delete-confirmation-mobile" class="hidden space-y-2 mt-2 border-t pt-4">
                     <p class="text-sm text-center font-semibold">Are you sure? This is permanent.</p>
                      <div class="flex space-x-2">
-                        <button id="confirmDeleteBtn-mobile" class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700">Yes, Delete</button>
-                        <button id="cancelDeleteBtn-mobile" class="w-full bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400">Cancel</button>
+                         <button id="confirmDeleteBtn-mobile" class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700">Yes, Delete</button>
+                         <button id="cancelDeleteBtn-mobile" class="w-full bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400">Cancel</button>
                      </div>
                 </div>
                  <div>
@@ -201,24 +231,22 @@
         let customMarkers = [];
         let isPlacingMarker = false;
         let lastAnalyzedTarget = null;
-        let placementInfo = { mode: null, id: null }; // 'custom' or 'repeater'
+        let placementInfo = { mode: null, id: null }; 
         let previousDefaultRepeaterHeight = 30;
-        let analysisController = null; // To manage and cancel ongoing batch analyses
-        const DEFAULT_LAT = 43.6532; // Downtown Toronto
+        let analysisController = null;
+        const DEFAULT_LAT = 43.6532;
         const DEFAULT_LON = -79.3832;
-        const CANADIAN_PROVINCES = {
-            'alberta': '48', 'british columbia': '59', 'manitoba': '46', 'new brunswick': '13', 
-            'newfoundland and labrador': '10', 'nova scotia': '12', 'ontario': '35', 
-            'prince edward island': '11', 'quebec': '24', 'saskatchewan': '47', 
-            'northwest territories': '61', 'nunavut': '62', 'yukon': '60'
-        };
-
+        const K_FACTOR = 4 / 3;
+        const EARTH_RADIUS_METERS = 6378137.0; 
+        const EFFECTIVE_EARTH_RADIUS = EARTH_RADIUS_METERS * K_FACTOR;
+        
         // --- DOM Element References ---
         let latInput, lonInput, userHeightInput, repeaterHeightInput, gpxUpload,
-            addMarkerBtn, resetLocationBtn,
-            customMarkerInputContainer, customMarkerNameInput, losFilterCheckbox, filterStatusDiv,
-            repeaterListDiv, customListDiv, losResultContainer, selectedRepeaterInfoDiv,
-            profileChartCanvas, repeaterSearchInput;
+            addMarkerBtn, resetLocationBtn, customMarkerInputContainer, customMarkerNameInput,
+            customMarkerFreqInput, filterStatusDiv, repeaterListDiv, customListDiv,
+            losResultContainer, selectedRepeaterInfoDiv, pathLossResultContainer,
+            profileChartCanvas, repeaterSearchInput, curvatureCheckbox, maxPathLossInput,
+            runBatchAnalysisBtn, filterModeSelect, pathLossContainer;
 
         // --- Map and Chart Initialization ---
         let map;
@@ -231,7 +259,6 @@
 
         // --- Initial Setup ---
         document.addEventListener('DOMContentLoaded', () => {
-            // Assign DOM elements
             latInput = document.getElementById('latitude');
             lonInput = document.getElementById('longitude');
             userHeightInput = document.getElementById('user-height');
@@ -241,41 +268,52 @@
             resetLocationBtn = document.getElementById('resetLocationBtn');
             customMarkerInputContainer = document.getElementById('custom-marker-input-container');
             customMarkerNameInput = document.getElementById('custom-marker-name');
-            losFilterCheckbox = document.getElementById('los-filter-checkbox');
+            customMarkerFreqInput = document.getElementById('custom-marker-freq');
             filterStatusDiv = document.getElementById('filter-status');
             repeaterListDiv = document.getElementById('repeater-list');
             customListDiv = document.getElementById('custom-list');
             losResultContainer = document.getElementById('los-result-container');
+            pathLossResultContainer = document.getElementById('path-loss-result-container');
             selectedRepeaterInfoDiv = document.getElementById('selected-repeater-info');
             profileChartCanvas = document.getElementById('profileChart');
             repeaterSearchInput = document.getElementById('repeater-search');
+            curvatureCheckbox = document.getElementById('curvature-checkbox');
+            maxPathLossInput = document.getElementById('max-path-loss-input');
+            runBatchAnalysisBtn = document.getElementById('run-batch-analysis');
+            filterModeSelect = document.getElementById('filter-mode-select');
+            pathLossContainer = document.getElementById('path-loss-container');
             
-            // Initialize map
             map = L.map('map').setView([DEFAULT_LAT, DEFAULT_LON], 9);
             L.tileLayer(TILE_URL, { attribution: TILE_ATTRIBUTION }).addTo(map);
-
+            markerClusterGroup = L.markerClusterGroup({ maxClusterRadius: 20 });
+            map.addLayer(markerClusterGroup);
             customMarkerLayer = L.layerGroup().addTo(map);
 
-            // Set initial location and load data
             setLocation(DEFAULT_LAT, DEFAULT_LON);
             requestUserGeolocation();
             loadFromLocalStorage();
 
-            // Attach event listeners
             map.on('click', onMapClick);
             gpxUpload.addEventListener('change', handleFileUpload);
-            losFilterCheckbox.addEventListener('change', handleLOSFilterToggle);
             addMarkerBtn.addEventListener('click', () => togglePlaceMarkerMode('custom'));
             resetLocationBtn.addEventListener('click', requestUserGeolocation);
-            userHeightInput.addEventListener('input', () => { if (lastAnalyzedTarget) analyzePath(lastAnalyzedTarget, getCurrentCoords()); });
-            repeaterSearchInput.addEventListener('input', () => displayRepeaters(repeaterData, getCurrentCoords()));
+            runBatchAnalysisBtn.addEventListener('click', runBatchAnalysis);
+            maxPathLossInput.addEventListener('input', () => updateFilteredView(repeaterData, getCurrentCoords()));
+            filterModeSelect.addEventListener('change', handleFilterModeChange);
+
+            const reanalyzeInputs = [userHeightInput, curvatureCheckbox];
+            reanalyzeInputs.forEach(input => {
+                input.addEventListener('input', () => { 
+                    if (lastAnalyzedTarget) analyzePath(lastAnalyzedTarget, getCurrentCoords()); 
+                });
+            });
+            repeaterSearchInput.addEventListener('input', () => updateFilteredView(repeaterData, getCurrentCoords()));
             
             repeaterHeightInput.addEventListener('focus', (e) => {
                 previousDefaultRepeaterHeight = parseFloat(e.target.value) || 30;
             });
             repeaterHeightInput.addEventListener('input', handleDefaultRepeaterHeightChange);
             
-            // --- Event Listeners for both Desktop and Mobile "Manage Sets" ---
             ['desktop', 'mobile'].forEach(view => {
                 document.getElementById(`saveSetBtn-${view}`).addEventListener('click', saveCurrentSet);
                 document.getElementById(`deleteSetBtn-${view}`).addEventListener('click', () => {
@@ -288,11 +326,31 @@
                 document.getElementById(`set-select-${view}`).addEventListener('change', loadSelectedSet);
                 document.getElementById(`clearDataBtn-${view}`).addEventListener('click', clearLocalStorage);
             });
+
+            handleFilterModeChange();
         });
 
 
         // --- Core Functions ---
         
+        function handleFilterModeChange() {
+            const filterMode = filterModeSelect.value;
+            const isPathLossMode = filterMode === 'pathLoss';
+            const filterControlsGrid = document.getElementById('filter-controls-grid');
+
+            pathLossContainer.classList.toggle('hidden', !isPathLossMode);
+
+            if (isPathLossMode) {
+                filterControlsGrid.classList.add('grid-cols-2');
+                filterControlsGrid.classList.remove('grid-cols-1');
+            } else {
+                filterControlsGrid.classList.remove('grid-cols-2');
+                filterControlsGrid.classList.add('grid-cols-1');
+            }
+
+            updateFilteredView(repeaterData, getCurrentCoords());
+        }
+
         function requestUserGeolocation() {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(position => {
@@ -319,11 +377,12 @@
             reader.onload = function(e) {
                 try {
                     repeaterData = parseGPX(e.target.result);
-                    filterStatusDiv.textContent = `Loaded ${repeaterData.length} repeaters. Please save this as a new set.`;
-                    displayRepeaters(repeaterData, getCurrentCoords());
-                    if (losFilterCheckbox.checked) {
-                        runLOSFilterAnalysis();
-                    }
+                    repeaterData.forEach(r => {
+                        delete r.pathLoss;
+                        delete r.isVisible;
+                    });
+                    filterStatusDiv.textContent = `Loaded ${repeaterData.length} repeaters. Click "Analyze All Repeaters" to begin.`;
+                    updateFilteredView(repeaterData, getCurrentCoords());
                 } catch (error) {
                     filterStatusDiv.textContent = `Error parsing GPX: ${error.message}`;
                     repeaterListDiv.innerHTML = '<p class="p-3 text-red-500">Failed to parse GPX file. Please check format.</p>';
@@ -357,12 +416,11 @@
                 const infoParts = parts.slice(1);
                 let freqIndex = -1;
 
-                // First, find the frequency. It's the most distinct part (e.g., > 20 MHz).
                 for (let j = 0; j < infoParts.length; j++) {
                     const part = infoParts[j];
                     const num = parseFloat(part);
                     if (!isNaN(num) && num > 20) {
-                        outputFreqStr = part.replace(/[+-]$/, ''); // Clean trailing +/-
+                        outputFreqStr = part.replace(/[+-]$/, '');
                         if (part.endsWith('+') || part.endsWith('-')) {
                             offsetSign = part.slice(-1);
                         }
@@ -371,17 +429,14 @@
                     }
                 }
 
-                // If we found a frequency, remove it and process the rest.
                 if (freqIndex !== -1) {
                     infoParts.splice(freqIndex, 1);
                 }
 
-                // Now, look for a standalone offset and a tone in the remaining parts.
                 for (const part of infoParts) {
                     if (part === '+' || part === '-') {
-                        offsetSign = part; // This will overwrite an attached sign, which is fine.
+                        offsetSign = part;
                     } else {
-                        // Anything else is assumed to be the tone.
                         uplinkTone = part;
                     }
                 }
@@ -389,13 +444,12 @@
                 const outputFreq = parseFloat(outputFreqStr);
                 let inputFreq = 'N/A';
 
-                // Calculate input frequency if we have all the necessary parts.
                 if (!isNaN(outputFreq) && (offsetSign === '+' || offsetSign === '-')) {
-                    let standardOffset = 0.6; // Default to VHF 2m offset
+                    let standardOffset = 0.6;
                     if (outputFreq >= 440 && outputFreq <= 450) {
-                        standardOffset = 5.0; // UHF 70cm offset
+                        standardOffset = 5.0;
                     } else if (outputFreq >= 222 && outputFreq <= 225) {
-                        standardOffset = 1.6; // 1.25m band offset
+                        standardOffset = 1.6;
                     }
 
                     if (offsetSign === '+') {
@@ -423,78 +477,57 @@
         
         const delay = ms => new Promise(res => setTimeout(res, ms));
 
-        function handleLOSFilterToggle(event) {
-            if (analysisController) {
-                analysisController.abort();
-            }
-            localStorage.setItem('losFilterState', event.target.checked);
-            if (repeaterData.length === 0) {
-                if(event.target.checked) {
-                    filterStatusDiv.textContent = "Please upload a repeater GPX file first.";
-                    setTimeout(() => filterStatusDiv.textContent = '', 3000);
-                }
-                event.target.checked = false;
-                return;
-            }
-
-            if (event.target.checked) {
-                if (repeaterData.every(r => typeof r.isVisible === 'boolean' || r.locationUnknown)) {
-                    const visibleRepeaters = repeaterData.filter(r => r.isVisible);
-                    filterStatusDiv.textContent = `Showing ${visibleRepeaters.length} of ${repeaterData.length} repeaters with clear Line-of-Sight.`;
-                    displayRepeaters(visibleRepeaters, getCurrentCoords());
-                } else {
-                    runLOSFilterAnalysis();
-                }
-            } else {
-                filterStatusDiv.textContent = '';
-                displayRepeaters(repeaterData, getCurrentCoords());
-            }
-        }
-
-        async function runLOSFilterAnalysis() {
-            // Cancel any previous analysis that might be running
+        async function runBatchAnalysis() {
             if (analysisController) {
                 analysisController.abort();
             }
             analysisController = new AbortController();
             const signal = analysisController.signal;
 
+            if (repeaterData.length === 0) {
+                filterStatusDiv.textContent = "Please upload a repeater GPX file first.";
+                setTimeout(() => filterStatusDiv.textContent = '', 3000);
+                return;
+            }
+
             const userCoords = getCurrentCoords();
             let completedCount = 0;
             const repeatersToAnalyze = repeaterData.filter(r => !r.locationUnknown);
             const totalRepeaters = repeatersToAnalyze.length;
-            let visibleRepeaters = [];
+            
             const startTime = Date.now();
+            
+            repeaterData.forEach(r => {
+                delete r.pathLoss;
+                delete r.isVisible;
+            });
+            updateFilteredView(repeaterData, userCoords);
 
-            displayRepeaters([], userCoords);
-
-            const concurrencyLimit = 8;
+            const concurrencyLimit = 5;
             const queue = [...repeatersToAnalyze];
             
             const worker = async () => {
                 while(queue.length > 0) {
-                    if (signal.aborted) return; // Stop if cancelled
+                    if (signal.aborted) return;
                     const repeater = queue.shift();
                     if (!repeater) continue;
 
-                    const result = await getLOSForRepeater(repeater, userCoords);
+                    const result = await getPathAnalysisForRepeater(repeater, userCoords);
                     if (signal.aborted) return;
 
+                    repeater.pathLoss = result.pathLoss;
                     repeater.isVisible = result.isVisible;
                     completedCount++;
-
-                    if (repeater.isVisible) {
-                        visibleRepeaters.push(repeater);
-                        visibleRepeaters.sort((a, b) => getDistance(userCoords, a) - getDistance(userCoords, b));
-                        displayRepeaters([...visibleRepeaters], userCoords);
-                    }
+                    
+                    updateFilteredView(repeaterData, userCoords);
                     
                     const elapsedTime = Date.now() - startTime;
                     const avgTime = elapsedTime / completedCount;
                     const remainingTime = avgTime * (totalRepeaters - completedCount);
                     const formattedTime = formatRemainingTime(remainingTime);
-
-                    filterStatusDiv.innerHTML = `<div class="flex items-center"><div class="loading-spinner !w-4 !h-4 mr-2"></div><span>Analyzed ${completedCount} of ${totalRepeaters}... Found ${visibleRepeaters.length} with LOS. (Est. ${formattedTime} left)</span></div>`;
+                    const reachableCount = getFilteredData(repeaterData).length;
+                    
+                    filterStatusDiv.innerHTML = `<div class="flex items-center"><div class="loading-spinner !w-4 !h-4 mr-2"></div><span>Analyzed ${completedCount} of ${totalRepeaters}... Found ${reachableCount} reachable. (Est. ${formattedTime} left)</span></div>`;
                 }
             };
 
@@ -505,6 +538,12 @@
             } catch (error) {
                 if (error.name === 'AbortError') {
                     console.log('Batch analysis was cancelled.');
+                    filterStatusDiv.textContent = 'Analysis cancelled.';
+                    repeaterData.forEach(r => {
+                        delete r.pathLoss;
+                        delete r.isVisible;
+                    });
+                    updateFilteredView(repeaterData, userCoords);
                     return;
                 }
                 throw error;
@@ -512,9 +551,34 @@
 
             if (signal.aborted) return;
 
-            localStorage.setItem('repeaterData', JSON.stringify(repeaterData));
-            filterStatusDiv.textContent = `Showing ${visibleRepeaters.length} of ${totalRepeaters} repeaters with clear Line-of-Sight.`;
-            displayRepeaters(visibleRepeaters, userCoords);
+            const reachableCount = getFilteredData(repeaterData).length;
+            filterStatusDiv.textContent = `Analysis complete. Found ${reachableCount} of ${totalRepeaters} repeaters matching criteria.`;
+            updateFilteredView(repeaterData, userCoords);
+        }
+
+        async function getPathAnalysisForRepeater(repeater, userCoords) {
+            try {
+                const initialPoints = getPointsOnPath(userCoords, { lat: repeater.lat, lon: repeater.lon }, 100);
+                const elevationProfile = await getElevationProfile(initialPoints);
+                const userAntennaHeight = parseFloat(userHeightInput.value) || 10;
+                const repeaterAntennaHeight = parseFloat(repeater.antennaHeight) || parseFloat(repeaterHeightInput.value) || 30;
+                const frequencyMHz = parseFloat(repeater.outputFreq || repeater.frequency) || 146.520;
+                const distanceKm = getDistance(userCoords, repeater);
+
+                const { isVisible } = calculateLineOfSight(elevationProfile, userAntennaHeight, repeaterAntennaHeight);
+                const fspl = calculateFreeSpacePathLoss(distanceKm, frequencyMHz);
+                let totalPathLoss = fspl;
+
+                if (!isVisible) {
+                    const deygoutResult = calculateDeygoutDiffractionLoss(elevationProfile, userAntennaHeight, repeaterAntennaHeight, frequencyMHz);
+                    totalPathLoss += deygoutResult.totalLoss;
+                }
+                
+                return { pathLoss: totalPathLoss, isVisible: isVisible };
+            } catch (error) {
+                console.error(`Failed to analyze path loss for ${repeater.callsign}:`, error);
+                return { pathLoss: Infinity, isVisible: false };
+            }
         }
 
         function formatRemainingTime(ms) {
@@ -527,66 +591,75 @@
             }
             return `${seconds}s`;
         }
-
-
-        async function getLOSForRepeater(repeater, userCoords) {
-            try {
-                const initialPoints = getPointsOnPath(userCoords, { lat: repeater.lat, lon: repeater.lon }, 100);
-                let elevationProfile = await getElevationProfile(initialPoints);
-                const userAntennaHeight = parseFloat(userHeightInput.value) || 10;
-                const repeaterAntennaHeight = parseFloat(repeater.antennaHeight) || parseFloat(repeaterHeightInput.value) || 30;
-                
-                let { isVisible } = calculateLineOfSight(elevationProfile, userAntennaHeight, repeaterAntennaHeight);
-
-                // Adaptive sampling for batch operation
-                if (isVisible) {
-                    const closeApproachSegments = findCloseApproachSegments(elevationProfile, userAntennaHeight, repeaterAntennaHeight, 20);
-                    if (closeApproachSegments.length > 0) {
-                        elevationProfile = await refineElevationProfile(elevationProfile, initialPoints, closeApproachSegments);
-                        ({ isVisible } = calculateLineOfSight(elevationProfile, userAntennaHeight, repeaterAntennaHeight));
-                    }
-                }
-                return { repeater, isVisible };
-            } catch (error) {
-                console.error(`Failed to analyze LOS for ${repeater.callsign}:`, error);
-                return { repeater, isVisible: false };
-            }
-        }
         
-        function displayRepeaters(repeaters, userCoords) {
+        function getFilteredData(allRepeaters) {
             const searchTerm = repeaterSearchInput.value.toLowerCase();
-            let dataToDisplay = repeaters;
+            const filterMode = filterModeSelect.value;
+            const maxPathLoss = parseFloat(maxPathLossInput.value);
+            
+            let filtered = [...allRepeaters];
 
             if (searchTerm) {
-                dataToDisplay = repeaters.filter(r => 
+                filtered = filtered.filter(r => 
                     r.callsign.toLowerCase().includes(searchTerm) ||
-                    r.outputFreq.includes(searchTerm) ||
-                    r.inputFreq.includes(searchTerm) ||
+                    (r.outputFreq && r.outputFreq.includes(searchTerm)) ||
+                    (r.inputFreq && r.inputFreq.includes(searchTerm)) ||
                     r.location.toLowerCase().includes(searchTerm)
                 );
             }
-
-            const knownRepeaters = dataToDisplay.filter(r => !r.locationUnknown);
-            repeaterListDiv.innerHTML = '';
             
-            if (markerClusterGroup) {
-                markerClusterGroup.clearLayers();
-            } else {
-                markerClusterGroup = L.markerClusterGroup();
-                map.addLayer(markerClusterGroup);
+            if (filterMode === 'none') {
+                return filtered;
             }
 
-            if (knownRepeaters.length === 0 && losFilterCheckbox.checked) {
-                 repeaterListDiv.innerHTML = '<p class="p-3 text-gray-500">No repeaters found with Line-of-Sight.</p>';
-            } else if (knownRepeaters.length === 0) {
-                 repeaterListDiv.innerHTML = '<p class="p-3 text-gray-500">No repeaters match your search.</p>';
+            const analysisHasRun = allRepeaters.some(r => r.pathLoss !== undefined || r.isVisible !== undefined);
+            if (!analysisHasRun && filterMode !== 'none') {
+                return []; // Don't show any if analysis is required but not run
             }
 
+            if (filterMode === 'pathLoss' && !isNaN(maxPathLoss)) {
+                filtered = filtered.filter(r => typeof r.pathLoss === 'number' && r.pathLoss <= maxPathLoss);
+            } else if (filterMode === 'los') {
+                filtered = filtered.filter(r => r.isVisible);
+            }
 
-            knownRepeaters.sort((a, b) => getDistance(userCoords, a) - getDistance(userCoords, b));
+            return filtered;
+        }
 
-            knownRepeaters.forEach(repeater => {
+        function updateFilteredView(allRepeaters, userCoords) {
+            const filteredData = getFilteredData(allRepeaters);
+            const filterMode = filterModeSelect.value;
+            const analysisHasRun = allRepeaters.some(r => r.pathLoss !== undefined || r.isVisible !== undefined);
+
+            filteredData.sort((a, b) => {
+                if (filterMode === 'pathLoss' && analysisHasRun) {
+                    const pa = (typeof a.pathLoss === 'number') ? a.pathLoss : Infinity;
+                    const pb = (typeof b.pathLoss === 'number') ? b.pathLoss : Infinity;
+                    return pa - pb;
+                }
+                return getDistance(userCoords, a) - getDistance(userCoords, b);
+            });
+
+            repeaterListDiv.innerHTML = '';
+            markerClusterGroup.clearLayers();
+
+            if (filteredData.length === 0) {
+                 repeaterListDiv.innerHTML = '<p class="p-3 text-gray-500">No repeaters match the current filters.</p>';
+            }
+
+            filteredData.forEach(repeater => {
                 const distance = getDistance(userCoords, repeater).toFixed(1);
+                
+                let pathLossHTML = '';
+                if (typeof repeater.pathLoss === 'number') {
+                    const lossColor = repeater.pathLoss > 160 ? 'text-red-500' : repeater.pathLoss > 140 ? 'text-yellow-600' : 'text-green-600';
+                    pathLossHTML = `<p class="text-sm font-medium ${lossColor}">Loss: ${repeater.pathLoss.toFixed(1)} dB</p>`;
+                } else if (repeater.isVisible === true) {
+                    pathLossHTML = `<p class="text-sm font-medium text-green-600">Clear LOS</p>`;
+                } else if (repeater.isVisible === false) {
+                    pathLossHTML = `<p class="text-sm font-medium text-red-500">Obstructed</p>`;
+                }
+
                 const item = document.createElement('div');
                 item.className = 'p-3 border rounded-lg hover:bg-gray-100';
                 item.innerHTML = `
@@ -595,7 +668,10 @@
                             <p class="font-bold">${repeater.callsign}</p>
                             <p class="text-sm text-gray-600">${repeater.location}</p>
                         </div>
-                        <p class="text-sm font-medium text-gray-800">${distance} km</p>
+                        <div class="text-right">
+                            <p class="text-sm font-medium text-gray-800">${distance} km</p>
+                            ${pathLossHTML}
+                        </div>
                     </div>
                     <div class="mt-2 text-xs text-gray-700 grid grid-cols-2 gap-x-4 gap-y-1">
                         <span><span class="font-semibold">Output:</span> ${repeater.outputFreq} (${repeater.offset})</span>
@@ -622,27 +698,36 @@
                 });
 
                 repeaterListDiv.appendChild(item);
-
-                const marker = L.marker([repeater.lat, repeater.lon], { draggable: true })
-                    .bindPopup(`<b>${repeater.callsign}</b><br>${repeater.location}<br>${repeater.outputFreq} MHz<br><button class="mt-2 p-1 bg-indigo-500 text-white rounded text-xs" onclick='analyzePathFromPopup(${JSON.stringify(repeater)})'>Check LOS</button>`);
-                
-                marker.on('dragend', (event) => {
-                    const newCoords = event.target.getLatLng();
-                    repeater.lat = newCoords.lat;
-                    repeater.lon = newCoords.lng;
-                    repeater.location = `Custom Position (${newCoords.lat.toFixed(3)}, ${newCoords.lng.toFixed(3)})`;
-                    displayRepeaters(repeaterData, getCurrentCoords());
-                    if (lastAnalyzedTarget && lastAnalyzedTarget.id === repeater.id) {
-                        analyzePath(repeater, getCurrentCoords());
-                    }
-                });
-
-                markerClusterGroup.addLayer(marker);
+                addRepeaterMarkerToMap(repeater);
             });
         }
         
+        function addRepeaterMarkerToMap(repeater) {
+            const marker = L.marker([repeater.lat, repeater.lon], { draggable: true })
+                .bindPopup(`<b>${repeater.callsign}</b><br>${repeater.location}<br>${repeater.outputFreq} MHz<br><button class="mt-2 p-1 bg-indigo-500 text-white rounded text-xs" onclick='analyzePathFromPopup(${JSON.stringify(repeater)})'>Check Path</button>`);
+            
+            marker.on('dragend', (event) => {
+                const newCoords = event.target.getLatLng();
+                const targetRepeater = repeaterData.find(r => r.id === repeater.id);
+                if (targetRepeater) {
+                    targetRepeater.lat = newCoords.lat;
+                    targetRepeater.lon = newCoords.lng;
+                    targetRepeater.location = `Custom Position (${newCoords.lat.toFixed(3)}, ${newCoords.lng.toFixed(3)})`;
+                }
+                repeaterData.forEach(r => {
+                    delete r.pathLoss;
+                    delete r.isVisible;
+                });
+                updateFilteredView(repeaterData, getCurrentCoords());
+                if (lastAnalyzedTarget && lastAnalyzedTarget.id === repeater.id) {
+                    analyzePath(repeater, getCurrentCoords());
+                }
+            });
+
+            markerClusterGroup.addLayer(marker);
+        }
+
         function analyzePathFromPopup(repeater) {
-            // Find the full repeater object from our data array to get the latest height
             const fullRepeaterData = repeaterData.find(r => r.id === repeater.id);
             if(fullRepeaterData) {
                 analyzePath(fullRepeaterData, getCurrentCoords());
@@ -675,16 +760,16 @@
                 latInput.value = standardizedCoords.lat.toFixed(5);
                 lonInput.value = standardizedCoords.lon.toFixed(5);
                 
-                repeaterData.forEach(r => delete r.isVisible);
-                localStorage.setItem('repeaterData', JSON.stringify(repeaterData));
-
-                displayRepeaters(repeaterData, standardizedCoords);
+                repeaterData.forEach(r => {
+                    delete r.pathLoss;
+                    delete r.isVisible;
+                });
+                filterStatusDiv.textContent = "Location changed. Please re-run analysis.";
+                
+                updateFilteredView(repeaterData, standardizedCoords);
                 displayCustomMarkers();
                 if (lastAnalyzedTarget) {
                     analyzePath(lastAnalyzedTarget, standardizedCoords);
-                }
-                if (losFilterCheckbox.checked) {
-                    runLOSFilterAnalysis();
                 }
             });
         }
@@ -696,46 +781,65 @@
             };
         }
 
-        async function analyzePath(repeater, userCoords) {
-            lastAnalyzedTarget = repeater;
-            displaySelectedRepeaterInfo(repeater);
+        async function analyzePath(target, userCoords) {
+            lastAnalyzedTarget = target;
+            displaySelectedRepeaterInfo(target);
             losResultContainer.innerHTML = '<div class="flex justify-center items-center"><div class="loading-spinner"></div><p class="ml-4">Analyzing terrain...</p></div>';
+            pathLossResultContainer.innerHTML = '<p class="text-gray-500">Awaiting line-of-sight result...</p>';
             if (profileChart) profileChart.destroy();
 
             if (repeaterMarker) map.removeLayer(repeaterMarker);
-            repeaterMarker = L.marker([repeater.lat, repeater.lon], {
+            repeaterMarker = L.marker([target.lat, target.lon], {
                  icon: L.icon({
                     iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
                     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
                     iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
                 })
             }).addTo(map);
-            repeaterMarker.options.customId = repeater.id;
-            repeaterMarker.bindPopup(`<b>${repeater.callsign}</b>`).openPopup();
+            repeaterMarker.options.customId = target.id;
+            repeaterMarker.bindPopup(`<b>${target.callsign || target.name}</b>`).openPopup();
 
-            const initialPoints = getPointsOnPath(userCoords, { lat: repeater.lat, lon: repeater.lon }, 100);
+            const initialPoints = getPointsOnPath(userCoords, { lat: target.lat, lon: target.lon }, 100);
             
             try {
                 let elevationProfile = await getElevationProfile(initialPoints);
                 const userAntennaHeight = parseFloat(userHeightInput.value) || 10;
-                let repeaterAntennaHeight = parseFloat(repeater.antennaHeight) || parseFloat(repeaterHeightInput.value) || 30;
+                let repeaterAntennaHeight = parseFloat(target.antennaHeight) || parseFloat(repeaterHeightInput.value) || 30;
                 
                 let { isVisible, obstructionPoint } = calculateLineOfSight(elevationProfile, userAntennaHeight, repeaterAntennaHeight);
+                let allObstructions = [];
 
-                // --- Adaptive Sampling Logic ---
                 if (isVisible) {
                     const closeApproachSegments = findCloseApproachSegments(elevationProfile, userAntennaHeight, repeaterAntennaHeight, 20);
                     if (closeApproachSegments.length > 0) {
                         losResultContainer.innerHTML = '<div class="flex justify-center items-center"><div class="loading-spinner"></div><p class="ml-4">Refining path analysis...</p></div>';
                         elevationProfile = await refineElevationProfile(elevationProfile, initialPoints, closeApproachSegments);
-                        // Recalculate with the refined profile
                         ({ isVisible, obstructionPoint } = calculateLineOfSight(elevationProfile, userAntennaHeight, repeaterAntennaHeight));
                     }
                 }
 
-                displayLosResult(isVisible, obstructionPoint, userCoords, repeater);
-                drawProfileChart(elevationProfile, userAntennaHeight, repeaterAntennaHeight, isVisible, obstructionPoint);
-                drawPathOnMap(initialPoints, isVisible); // Draw original path line regardless of refinement
+                displayLosResult(isVisible, obstructionPoint, userCoords, target);
+                
+                const distanceKm = getDistance(userCoords, target);
+                const frequencyMHz = parseFloat(target.outputFreq || target.frequency) || 146.520;
+                
+                const fspl = calculateFreeSpacePathLoss(distanceKm, frequencyMHz);
+                let totalPathLoss = fspl;
+                let diffractionLoss = 0;
+
+                if (!isVisible) {
+                    const deygoutResult = calculateDeygoutDiffractionLoss(elevationProfile, userAntennaHeight, repeaterAntennaHeight, frequencyMHz);
+                    diffractionLoss = deygoutResult.totalLoss;
+                    allObstructions = deygoutResult.obstructions;
+                    totalPathLoss += diffractionLoss;
+                } else {
+                    allObstructions = [];
+                }
+
+                displayPathLossResult(totalPathLoss, fspl, diffractionLoss, isVisible, target);
+
+                drawProfileChart(elevationProfile, userAntennaHeight, repeaterAntennaHeight, isVisible, allObstructions);
+                drawPathOnMap(initialPoints, isVisible);
 
             } catch (error) {
                 console.error("Error during analysis:", error);
@@ -795,46 +899,135 @@
 
             if (isNrCan) {
                 if (!data || !Array.isArray(data)) throw new Error('Invalid data received from NRCan API.');
-                return data.map(p => ({
+                return data.map((p, i) => ({
                     elevation: p.altitude,
-                    location: { lat: p.geometry.coordinates[1], lng: p.geometry.coordinates[0] }
+                    location: { lat: p.geometry.coordinates[1], lon: p.geometry.coordinates[0] },
+                    originalIndex: i
                 }));
             } else {
                 if (!data.elevation) throw new Error('Invalid data received from Open-Meteo API.');
                 return data.elevation.map((elevation, index) => ({
                     elevation: elevation,
-                    location: { lat: points[index].lat, lng: points[index].lon }
+                    location: { lat: points[index].lat, lon: points[index].lon },
+                    originalIndex: index
                 }));
             }
         }
 
         function calculateLineOfSight(elevationProfile, userAntennaHeight, repeaterAntennaHeight) {
-            if (!elevationProfile || elevationProfile.length < 2) {
-                return { isVisible: false, obstructionPoint: null };
+            const worstObstruction = findWorstObstruction(elevationProfile, userAntennaHeight, repeaterAntennaHeight);
+            return {
+                isVisible: !worstObstruction,
+                obstructionPoint: worstObstruction
+            };
+        }
+        
+        function calculateFreeSpacePathLoss(distanceKm, frequencyMHz) {
+            if (distanceKm <= 0 || frequencyMHz <= 0) {
+                return 0;
             }
+            const pathLoss = 20 * Math.log10(distanceKm) + 20 * Math.log10(frequencyMHz) + 32.44;
+            return pathLoss;
+        }
 
-            const startPoint = elevationProfile[0];
-            const endPoint = elevationProfile[elevationProfile.length - 1];
-            const startElevation = startPoint.elevation + userAntennaHeight;
-            const endElevation = endPoint.elevation + repeaterAntennaHeight;
+        function calculateKnifeEdgeDiffractionLoss(h, d1, d2, frequencyMHz) {
+            const c = 299792458;
+            const frequencyHz = frequencyMHz * 1e6;
+            const lambda = c / frequencyHz;
 
-            for (let i = 1; i < elevationProfile.length - 1; i++) {
-                const intermediatePoint = elevationProfile[i];
-                const fraction = i / (elevationProfile.length - 1);
-                const losHeight = startElevation + fraction * (endElevation - startElevation);
-                if (intermediatePoint.elevation > losHeight) {
-                    return {
-                        isVisible: false,
-                        obstructionPoint: { ...intermediatePoint, losHeight: losHeight, distanceFraction: fraction }
+            if (h <= 0 || d1 <= 0 || d2 <= 0) return 0;
+
+            const v = h * Math.sqrt((2 / lambda) * ((1 / d1) + (1 / d2)));
+            const diffractionLossDb = 6.9 + 20 * Math.log10(Math.sqrt(Math.pow(v - 0.1, 2) + 1) + v - 0.1);
+            
+            return diffractionLossDb > 0 ? diffractionLossDb : 0;
+        }
+
+        function findWorstObstruction(pathSegment, startAntennaHeight, endAntennaHeight) {
+            if (!pathSegment || pathSegment.length < 2) {
+                return null;
+            }
+            const applyCurvature = document.getElementById('curvature-checkbox').checked;
+            const totalDistance = getDistance(pathSegment[0].location, pathSegment[pathSegment.length - 1].location) * 1000;
+
+            const startElevation = pathSegment[0].elevation + startAntennaHeight;
+            const endElevation = pathSegment[pathSegment.length - 1].elevation + endAntennaHeight;
+
+            let worstObstruction = null;
+            let maxH = -Infinity;
+
+            for (let i = 1; i < pathSegment.length - 1; i++) {
+                const intermediatePoint = pathSegment[i];
+                const fraction = i / (pathSegment.length - 1);
+                
+                const terrainElevation = intermediatePoint.elevation;
+                const straightLosHeight = startElevation + fraction * (endElevation - startElevation);
+                
+                let effectiveLosHeight = straightLosHeight;
+                if (applyCurvature) {
+                    const d1 = totalDistance * fraction;
+                    const d2 = totalDistance - d1;
+                    const curvatureDrop = (d1 * d2) / (2 * EFFECTIVE_EARTH_RADIUS);
+                    effectiveLosHeight -= curvatureDrop;
+                }
+
+                const h = terrainElevation - effectiveLosHeight;
+
+                if (h > maxH) {
+                    maxH = h;
+                    worstObstruction = {
+                        ...intermediatePoint,
+                        h: h,
+                        indexInSegment: i
                     };
                 }
             }
-            return { isVisible: true, obstructionPoint: null };
+
+            return maxH > 0 ? worstObstruction : null;
         }
-        
+
+        function calculateDeygoutDiffractionLoss(pathProfile, startHeight, endHeight, frequencyMHz) {
+            function getLossAndObstructionsRecursive(subPath, subStartHeight, subEndHeight) {
+                const mainObstruction = findWorstObstruction(subPath, subStartHeight, subEndHeight);
+
+                if (!mainObstruction) {
+                    return { loss: 0, obstructions: [] };
+                }
+
+                const totalSubPathDistance = getDistance(subPath[0].location, subPath[subPath.length - 1].location) * 1000;
+                const d1 = getDistance(subPath[0].location, mainObstruction.location) * 1000;
+                const d2 = totalSubPathDistance - d1;
+                
+                const mainLoss = calculateKnifeEdgeDiffractionLoss(mainObstruction.h, d1, d2, frequencyMHz);
+
+                let results1 = { loss: 0, obstructions: [] };
+                const path1 = subPath.slice(0, mainObstruction.indexInSegment + 1);
+                if (path1.length > 2) {
+                    results1 = getLossAndObstructionsRecursive(path1, subStartHeight, 0);
+                }
+                
+                let results2 = { loss: 0, obstructions: [] };
+                const path2 = subPath.slice(mainObstruction.indexInSegment);
+                if (path2.length > 2) {
+                    results2 = getLossAndObstructionsRecursive(path2, 0, subEndHeight);
+                }
+                
+                return {
+                    loss: mainLoss + results1.loss + results2.loss,
+                    obstructions: [mainObstruction, ...results1.obstructions, ...results2.obstructions]
+                };
+            }
+
+            const results = getLossAndObstructionsRecursive(pathProfile, startHeight, endHeight);
+            return { totalLoss: results.loss, obstructions: results.obstructions };
+        }
+
+
         function findCloseApproachSegments(elevationProfile, userAntennaHeight, repeaterAntennaHeight, threshold) {
             const segments = [];
             if (elevationProfile.length < 2) return segments;
+            const applyCurvature = document.getElementById('curvature-checkbox').checked;
+            const totalDistance = getDistance(elevationProfile[0].location, elevationProfile[elevationProfile.length - 1].location) * 1000;
 
             const startElevation = elevationProfile[0].elevation + userAntennaHeight;
             const endElevation = elevationProfile[elevationProfile.length - 1].elevation + repeaterAntennaHeight;
@@ -844,24 +1037,32 @@
             for (let i = 1; i < elevationProfile.length - 1; i++) {
                 const point = elevationProfile[i];
                 const fraction = i / (elevationProfile.length - 1);
-                const losHeight = startElevation + fraction * (endElevation - startElevation);
-                const clearance = losHeight - point.elevation;
+                
+                const terrainElevation = point.elevation;
+                const straightLosHeight = startElevation + fraction * (endElevation - startElevation);
+                let effectiveLosHeight = straightLosHeight;
+                
+                if (applyCurvature) {
+                    const d1 = totalDistance * fraction;
+                    const d2 = totalDistance - d1;
+                    const curvatureDrop = (d1 * d2) / (2 * EFFECTIVE_EARTH_RADIUS);
+                    effectiveLosHeight -= curvatureDrop;
+                }
+                
+                const clearance = effectiveLosHeight - terrainElevation;
 
                 if (clearance > 0 && clearance < threshold) {
                     if (!currentSegment) {
-                        // Start a new segment, including one point before for context
                         currentSegment = { start: Math.max(0, i - 1) };
                     }
                 } else {
                     if (currentSegment) {
-                        // End the current segment, including one point after for context
                         currentSegment.end = Math.min(elevationProfile.length - 1, i);
                         segments.push(currentSegment);
                         currentSegment = null;
                     }
                 }
             }
-            // Close any open segment at the end of the path
             if (currentSegment) {
                 currentSegment.end = elevationProfile.length - 1;
                 segments.push(currentSegment);
@@ -871,86 +1072,135 @@
 
         async function refineElevationProfile(initialProfile, initialPoints, segments) {
             let refinedProfile = [...initialProfile];
-            let offset = 0; // Keep track of how much the array length changes
+            let offset = 0;
 
             for (const segment of segments) {
                 const startPoint = initialPoints[segment.start];
                 const endPoint = initialPoints[segment.end];
                 
-                // Get 50 new, high-resolution points within this segment
                 const refinedPoints = getPointsOnPath(startPoint, endPoint, 50);
                 const refinedSegmentProfile = await getElevationProfile(refinedPoints);
 
-                // Replace the old, coarse segment with the new, refined one
                 const pointsToRemove = segment.end - segment.start + 1;
                 refinedProfile.splice(segment.start + offset, pointsToRemove, ...refinedSegmentProfile);
                 
-                // Update the offset for subsequent splices
                 offset += refinedSegmentProfile.length - pointsToRemove;
             }
             return refinedProfile;
         }
 
-        function displaySelectedRepeaterInfo(repeater) {
+        function displaySelectedRepeaterInfo(target) {
             selectedRepeaterInfoDiv.innerHTML = `
                 <div class="text-left">
-                    <p class="font-bold text-lg">${repeater.callsign}</p>
-                    <p class="text-sm text-gray-600">${repeater.location}</p>
+                    <p class="font-bold text-lg">${target.callsign}</p>
+                    <p class="text-sm text-gray-600">${target.location}</p>
                     <div class="mt-2 text-sm text-gray-800 grid grid-cols-2 gap-x-4 gap-y-1">
-                        <span><span class="font-semibold">Output:</span> ${repeater.outputFreq || 'N/A'} (${repeater.offset || 'N/A'})</span>
-                        <span><span class="font-semibold">Input:</span> ${repeater.inputFreq || 'N/A'}</span>
-                        ${repeater.uplinkTone !== 'N/A' ? `<span><span class="font-semibold">Tone:</span> ${repeater.uplinkTone}</span>` : ''}
-                        <span><span class="font-semibold">Antenna Ht:</span> ${repeater.antennaHeight} m</span>
+                        <span><span class="font-semibold">Frequency:</span> ${target.outputFreq || target.frequency} MHz</span>
+                        <span><span class="font-semibold">Antenna Ht:</span> ${target.antennaHeight} m</span>
                     </div>
                 </div>
             `;
         }
 
-        function displayLosResult(isVisible, obstructionPoint, userCoords, repeater) {
-            const distance = getDistance(userCoords, repeater).toFixed(2);
+        function displayLosResult(isVisible, obstructionPoint, userCoords, target) {
+            const distance = getDistance(userCoords, target).toFixed(2);
             let resultHTML;
             if (isVisible) {
                 resultHTML = `<div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4">
-                        <p class="font-bold text-xl">Line-of-Sight is CLEAR!</p>
-                        <p>The path to ${repeater.callsign} (${distance} km) appears to be unobstructed by terrain.</p>
-                    </div>`;
+                                    <p class="font-bold text-xl">Line-of-Sight is CLEAR!</p>
+                                    <p>The path to ${target.callsign} (${distance} km) appears to be unobstructed by terrain.</p>
+                                </div>`;
             } else {
-                const obstructionDist = (distance * obstructionPoint.distanceFraction).toFixed(2);
+                const obstructionDist = (distance * (obstructionPoint ? obstructionPoint.originalIndex / (100 - 1) : 0)).toFixed(2);
                 resultHTML = `<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4">
-                        <p class="font-bold text-xl">Line-of-Sight is OBSTRUCTED</p>
-                        <p>The path to ${repeater.callsign} (${distance} km) is blocked by terrain.</p>
-                        <p>The highest obstruction is approximately ${obstructionDist} km from your location.</p>
-                    </div>`;
+                                    <p class="font-bold text-xl">Line-of-Sight is OBSTRUCTED</p>
+                                    <p>The path to ${target.callsign} (${distance} km) is blocked by terrain.</p>
+                                    ${obstructionPoint ? `<p>The primary obstruction is approximately ${obstructionDist} km from your location.</p>` : ''}
+                                </div>`;
             }
             losResultContainer.innerHTML = resultHTML;
         }
 
-        function drawProfileChart(elevationData, userAntennaHeight, repeaterAntennaHeight, isVisible, obstructionPoint) {
+        function displayPathLossResult(totalPathLoss, fspl, diffractionLoss, isVisible, target) {
+            let resultHTML;
+            if (isVisible) {
+                resultHTML = `<div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4">
+                                    <p class="font-bold text-xl">Free-Space Path Loss (FSPL)</p>
+                                    <p>Estimated loss to ${target.callsign}: <span class="font-bold text-2xl">${totalPathLoss.toFixed(2)} dB</span></p>
+                                    <p class="text-xs mt-2">Note: This is an ideal calculation for a clear path and does not account for atmospheric conditions, foliage, buildings, or antenna gain.</p>
+                                  </div>`;
+            } else {
+                resultHTML = `<div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4">
+                                    <p class="font-bold text-xl">Total Path Loss (Estimated)</p>
+                                    <p>Estimated total loss to ${target.callsign}: <span class="font-bold text-2xl">${totalPathLoss.toFixed(2)} dB</span></p>
+                                    <div class="mt-2 text-sm">
+                                        <p>Free-Space Path Loss: ${fspl.toFixed(2)} dB</p>
+                                        <p>+ Total Diffraction Loss: ${diffractionLoss.toFixed(2)} dB</p>
+                                    </div>
+                                    <p class="text-xs mt-2">Note: Diffraction loss is estimated using the Deygout method for multiple terrain obstructions. This does not account for other real-world factors.</p>
+                                  </div>`;
+            }
+            pathLossResultContainer.innerHTML = resultHTML;
+        }
+        
+        function drawProfileChart(elevationData, userAntennaHeight, repeaterAntennaHeight, isVisible, allObstructions) {
             if (profileChart) {
                 profileChart.destroy();
             }
-            const labels = elevationData.map((_, i) => i);
+            const applyCurvature = document.getElementById('curvature-checkbox').checked;
+            const totalDistance = getDistance(elevationData[0].location, elevationData[elevationData.length - 1].location) * 1000;
+
+            const labels = elevationData.map((_, i) => (getDistance(elevationData[0].location, elevationData[i].location)).toFixed(1) + ' km');
+            
             const terrainData = elevationData.map(p => p.elevation);
+
             const startElevation = elevationData[0].elevation + userAntennaHeight;
             const endElevation = elevationData[elevationData.length - 1].elevation + repeaterAntennaHeight;
+            
             const losData = elevationData.map((_, i) => {
                 const fraction = i / (elevationData.length - 1);
-                return startElevation + fraction * (endElevation - startElevation);
+                const straightLosHeight = startElevation + fraction * (endElevation - startElevation);
+                
+                if (applyCurvature) {
+                    const d1 = totalDistance * fraction;
+                    const d2 = totalDistance - d1;
+                    const curvatureDrop = (d1 * d2) / (2 * EFFECTIVE_EARTH_RADIUS);
+                    return straightLosHeight - curvatureDrop;
+                }
+                return straightLosHeight;
             });
 
             const datasets = [{
-                label: 'Terrain Profile', data: terrainData, borderColor: 'rgb(139, 69, 19)', backgroundColor: 'rgba(139, 69, 19, 0.2)',
-                fill: true, pointRadius: 0, borderWidth: 2
+                label: 'Terrain Profile',
+                data: terrainData,
+                borderColor: 'rgb(139, 69, 19)',
+                backgroundColor: 'rgba(139, 69, 19, 0.2)',
+                fill: true,
+                pointRadius: 0,
+                borderWidth: 2
             }, {
-                label: 'Line of Sight', data: losData, borderColor: isVisible ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)',
-                fill: false, pointRadius: 0, borderWidth: 3, borderDash: [5, 5]
+                label: applyCurvature ? 'Line of Sight (Curved Path)' : 'Line of Sight',
+                data: losData,
+                borderColor: isVisible ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)',
+                fill: false,
+                pointRadius: 0,
+                borderWidth: 3,
+                borderDash: [5, 5]
             }];
             
-            if (obstructionPoint) {
-                const obstructionIndex = Math.round(obstructionPoint.distanceFraction * (elevationData.length - 1));
+            if (allObstructions && allObstructions.length > 0) {
+                const obstructionPoints = allObstructions.map((obs, index) => ({
+                    x: obs.originalIndex,
+                    y: obs.elevation
+                }));
+
                 datasets.push({
-                    label: 'Obstruction', data: [{x: obstructionIndex, y: obstructionPoint.elevation}],
-                    backgroundColor: 'rgb(239, 68, 68)', pointRadius: 6, pointStyle: 'crossRot', type: 'scatter'
+                    label: 'Obstructions',
+                    data: obstructionPoints,
+                    backgroundColor: 'rgb(239, 68, 68)',
+                    pointRadius: 6,
+                    pointStyle: 'crossRot',
+                    type: 'scatter'
                 });
             }
 
@@ -964,12 +1214,12 @@
                         title: { display: true, text: 'Elevation Profile' },
                         legend: { position: 'top' },
                         tooltip: { callbacks: {
-                            title: (context) => `Point ${context[0].label} on Path`,
+                            title: (context) => `Distance: ${context[0].label}`,
                             label: (context) => `${context.dataset.label}: ${context.parsed.y.toFixed(1)} m`
                         }}
                     },
                     scales: {
-                        x: { title: { display: true, text: 'Path from You to Repeater' }, ticks: { display: false } },
+                        x: { title: { display: true, text: 'Path from You to Target' } },
                         y: { title: { display: true, text: 'Elevation (meters)' } }
                     }
                 }
@@ -985,10 +1235,15 @@
 
         function getDistance(coords1, coords2) {
             const R = 6371; // km
-            const dLat = (coords1.lat - coords2.lat) * Math.PI / 180;
-            const dLon = (coords1.lon - coords2.lon) * Math.PI / 180;
-            const a = 0.5 - Math.cos(dLat) / 2 + Math.cos(coords2.lat * Math.PI / 180) * Math.cos(coords1.lat * Math.PI / 180) * (1 - Math.cos(dLon)) / 2;
-            return R * 2 * Math.asin(Math.sqrt(a));
+            const dLat = (coords2.lat - coords1.lat) * Math.PI / 180;
+            const dLon = (coords2.lon - coords1.lon) * Math.PI / 180;
+            const lat1 = coords1.lat * Math.PI / 180;
+            const lat2 = coords2.lat * Math.PI / 180;
+
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1) * Math.cos(lat2); 
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+            return R * c;
         }
         
         window.analyzePathFromPopup = analyzePathFromPopup;
@@ -1027,7 +1282,8 @@
                     lat: e.latlng.lat,
                     lon: e.latlng.lng,
                     location: `Custom Marker (${e.latlng.lat.toFixed(3)}, ${e.latlng.lng.toFixed(3)})`,
-                    antennaHeight: parseFloat(repeaterHeightInput.value) || 30
+                    antennaHeight: parseFloat(repeaterHeightInput.value) || 30,
+                    frequency: parseFloat(customMarkerFreqInput.value) || 146.520
                 };
                 customMarkers.push(newMarkerData);
                 displayCustomMarkers();
@@ -1038,11 +1294,11 @@
                     repeater.lat = e.latlng.lat;
                     repeater.lon = e.latlng.lng;
                     delete repeater.locationUnknown;
-                    displayRepeaters(repeaterData, getCurrentCoords());
+                    updateFilteredView(repeaterData, getCurrentCoords());
                 }
             }
             
-            togglePlaceMarkerMode(null); // Exit placement mode
+            togglePlaceMarkerMode(null);
         }
 
         function displayCustomMarkers() {
@@ -1067,14 +1323,20 @@
                         </div>
                         <button class="delete-custom-marker text-red-500 hover:text-red-700 font-bold ml-2 p-1">&times;</button>
                     </div>
-                     <div class="mt-1">
-                        <label for="height-${markerData.id}" class="text-xs font-medium">Antenna Ht (m):</label>
-                        <input type="number" id="height-${markerData.id}" value="${markerData.antennaHeight}" class="w-20 ml-1 px-1 py-0.5 text-xs border border-gray-300 rounded">
+                     <div class="mt-1 grid grid-cols-2 gap-x-4">
+                        <div>
+                            <label for="height-${markerData.id}" class="text-xs font-medium">Antenna Ht (m):</label>
+                            <input type="number" id="height-${markerData.id}" value="${markerData.antennaHeight}" class="w-full mt-1 px-1 py-0.5 text-xs border border-gray-300 rounded">
+                        </div>
+                        <div>
+                            <label for="freq-${markerData.id}" class="text-xs font-medium">Frequency (MHz):</label>
+                            <input type="number" id="freq-${markerData.id}" value="${markerData.frequency}" class="w-full mt-1 px-1 py-0.5 text-xs border border-gray-300 rounded">
+                        </div>
                     </div>
                 `;
                 item.querySelector('.flex-grow').onclick = () => analyzePath(markerData, userCoords);
                 item.querySelector('.delete-custom-marker').onclick = (e) => {
-                    e.stopPropagation(); // Prevent the click from triggering the analysis
+                    e.stopPropagation();
                     deleteCustomMarker(markerData.id);
                 };
 
@@ -1084,6 +1346,18 @@
                     const targetMarker = customMarkers.find(m => m.id === markerData.id);
                     if (targetMarker && !isNaN(newHeight)) {
                         targetMarker.antennaHeight = newHeight;
+                        if (lastAnalyzedTarget && lastAnalyzedTarget.id === markerData.id) {
+                            analyzePath(targetMarker, getCurrentCoords());
+                        }
+                    }
+                });
+                
+                const freqInput = item.querySelector(`#freq-${markerData.id}`);
+                freqInput.addEventListener('input', (e) => {
+                    const newFreq = parseFloat(e.target.value);
+                    const targetMarker = customMarkers.find(m => m.id === markerData.id);
+                    if (targetMarker && !isNaN(newFreq)) {
+                        targetMarker.frequency = newFreq;
                         if (lastAnalyzedTarget && lastAnalyzedTarget.id === markerData.id) {
                             analyzePath(targetMarker, getCurrentCoords());
                         }
@@ -1123,8 +1397,8 @@
                     repeaterMarker = null;
                     if (pathLine) map.removeLayer(pathLine);
                     if (profileChart) profileChart.destroy();
-                    losResultContainer.innerHTML = '<p class="p-3 text-gray-500">Select a repeater from the list to analyze the path.</p>';
-                    selectedRepeaterInfoDiv.innerHTML = '<p class="text-gray-500">Select a repeater to see its details here.</p>';
+                    losResultContainer.innerHTML = '<p class="p-3 text-gray-500">Select a target from the list to analyze the path.</p>';
+                    selectedRepeaterInfoDiv.innerHTML = '<p class="text-gray-500">Select a target to see its details here.</p>';
                 }
                 customMarkers.splice(index, 1);
                 displayCustomMarkers();
@@ -1220,8 +1494,7 @@
                 customMarkers = savedSets[lastSetName].customMarkers || [];
 
                 filterStatusDiv.textContent = `Loaded set: ${lastSetName}`;
-                displayRepeaters(repeaterData, getCurrentCoords());
-                displayCustomMarkers();
+                updateFilteredView(repeaterData, getCurrentCoords());
             }
         }
 
@@ -1245,34 +1518,28 @@
             const newDefaultHeight = parseFloat(e.target.value);
             if (isNaN(newDefaultHeight)) return;
 
-            // Update any repeater that was using the old default value
             repeaterData.forEach(repeater => {
                 if (repeater.antennaHeight === previousDefaultRepeaterHeight) {
                     repeater.antennaHeight = newDefaultHeight;
                 }
             });
             
-            // Update custom markers too
              customMarkers.forEach(marker => {
                 if (marker.antennaHeight === previousDefaultRepeaterHeight) {
                     marker.antennaHeight = newDefaultHeight;
                 }
             });
 
-            // Redraw the lists to show the new default values
-            displayRepeaters(repeaterData, getCurrentCoords());
+            updateFilteredView(repeaterData, getCurrentCoords());
             displayCustomMarkers();
 
-            // Re-analyze if a target is selected
             if (lastAnalyzedTarget) {
-                // Find the latest version of the target data
                 const currentTargetData = repeaterData.find(r => r.id === lastAnalyzedTarget.id) || customMarkers.find(m => m.id === lastAnalyzedTarget.id);
                 if(currentTargetData) {
                    analyzePath(currentTargetData, getCurrentCoords());
                 }
             }
             
-            // Update the previous value for the next change
             previousDefaultRepeaterHeight = newDefaultHeight;
         }
 
