@@ -112,7 +112,7 @@
                 <!-- Analysis Filter UI -->
                 <div class="mb-4 p-4 bg-indigo-50 rounded-lg space-y-3">
                     <div id="filter-controls-grid" class="grid grid-cols-2 gap-4 items-end">
-                        <div>
+                        <div class="col-span-2" id="filter-mode-container">
                             <label for="filter-mode-select" class="block text-sm font-medium text-gray-700">Filter Mode</label>
                             <select id="filter-mode-select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
                                 <option value="none">None</option>
@@ -120,9 +120,30 @@
                                 <option value="los">Line of Sight</option>
                             </select>
                         </div>
-                        <div id="path-loss-container">
-                            <label for="max-path-loss-input" class="block text-sm font-medium text-gray-700">Max Loss (dB)</label>
-                            <input type="number" id="max-path-loss-input" value="150" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <div id="path-loss-container" class="space-y-3">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="tx-power" class="block text-sm font-medium text-gray-700">TX Power (W)</label>
+                                <input type="number" id="tx-power" value="5" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
+                            </div>
+                            <div>
+                                <label for="tx-gain" class="block text-sm font-medium text-gray-700">TX Gain (dBi)</label>
+                                <input type="number" id="tx-gain" value="2.15" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="rx-gain" class="block text-sm font-medium text-gray-700">RX Gain (dBi)</label>
+                                <input type="number" id="rx-gain" value="2.15" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
+                            </div>
+                            <div>
+                                <label for="rx-threshold" class="block text-sm font-medium text-gray-700">RX Threshold (µV)</label>
+                                <input type="number" id="rx-threshold" value="0.5" min="0.5" step="0.1" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
+                            </div>
+                        </div>
+                         <div class="mt-2 text-sm text-center bg-indigo-100 p-2 rounded-md">
+                            <p>Max Allowable Loss: <span id="calculated-path-loss-display" class="font-bold">...</span> dB</p>
                         </div>
                     </div>
                     <button id="run-batch-analysis" class="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 whitespace-nowrap">Analyze All Repeaters</button>
@@ -245,8 +266,9 @@
             addMarkerBtn, resetLocationBtn, customMarkerInputContainer, customMarkerNameInput,
             customMarkerFreqInput, filterStatusDiv, repeaterListDiv, customListDiv,
             losResultContainer, selectedRepeaterInfoDiv, pathLossResultContainer,
-            profileChartCanvas, repeaterSearchInput, curvatureCheckbox, maxPathLossInput,
-            runBatchAnalysisBtn, filterModeSelect, pathLossContainer;
+            profileChartCanvas, repeaterSearchInput, curvatureCheckbox,
+            runBatchAnalysisBtn, filterModeSelect, pathLossContainer,
+            txPowerInput, txGainInput, rxGainInput, rxThresholdInput;
 
         // --- Map and Chart Initialization ---
         let map;
@@ -256,6 +278,9 @@
         let customMarkerLayer;
         const TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
         const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+
+        // --- Marker Icons ---
+        let greenIcon, yellowIcon, redIcon, greyIcon, blueIcon;
 
         // --- Initial Setup ---
         document.addEventListener('DOMContentLoaded', () => {
@@ -278,10 +303,13 @@
             profileChartCanvas = document.getElementById('profileChart');
             repeaterSearchInput = document.getElementById('repeater-search');
             curvatureCheckbox = document.getElementById('curvature-checkbox');
-            maxPathLossInput = document.getElementById('max-path-loss-input');
             runBatchAnalysisBtn = document.getElementById('run-batch-analysis');
             filterModeSelect = document.getElementById('filter-mode-select');
             pathLossContainer = document.getElementById('path-loss-container');
+            txPowerInput = document.getElementById('tx-power');
+            txGainInput = document.getElementById('tx-gain');
+            rxGainInput = document.getElementById('rx-gain');
+            rxThresholdInput = document.getElementById('rx-threshold');
             
             map = L.map('map').setView([DEFAULT_LAT, DEFAULT_LON], 9);
             L.tileLayer(TILE_URL, { attribution: TILE_ATTRIBUTION }).addTo(map);
@@ -289,6 +317,7 @@
             map.addLayer(markerClusterGroup);
             customMarkerLayer = L.layerGroup().addTo(map);
 
+            initializeIcons();
             setLocation(DEFAULT_LAT, DEFAULT_LON);
             requestUserGeolocation();
             loadFromLocalStorage();
@@ -298,7 +327,6 @@
             addMarkerBtn.addEventListener('click', () => togglePlaceMarkerMode('custom'));
             resetLocationBtn.addEventListener('click', requestUserGeolocation);
             runBatchAnalysisBtn.addEventListener('click', runBatchAnalysis);
-            maxPathLossInput.addEventListener('input', () => updateFilteredView(repeaterData, getCurrentCoords()));
             filterModeSelect.addEventListener('change', handleFilterModeChange);
 
             const reanalyzeInputs = [userHeightInput, curvatureCheckbox];
@@ -307,7 +335,14 @@
                     if (lastAnalyzedTarget) analyzePath(lastAnalyzedTarget, getCurrentCoords()); 
                 });
             });
-            repeaterSearchInput.addEventListener('input', () => updateFilteredView(repeaterData, getCurrentCoords()));
+            
+            const liveFilterInputs = [repeaterSearchInput, txPowerInput, txGainInput, rxGainInput, rxThresholdInput];
+            liveFilterInputs.forEach(input => {
+                input.addEventListener('input', () => {
+                    updatePathLossDisplay();
+                    updateFilteredView(repeaterData, getCurrentCoords());
+                });
+            });
             
             repeaterHeightInput.addEventListener('focus', (e) => {
                 previousDefaultRepeaterHeight = parseFloat(e.target.value) || 30;
@@ -328,27 +363,50 @@
             });
 
             handleFilterModeChange();
+            updatePathLossDisplay();
         });
 
 
         // --- Core Functions ---
         
+        function initializeIcons() {
+            const iconOptions = {
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+            };
+            greenIcon = L.icon({ ...iconOptions, iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png' });
+            yellowIcon = L.icon({ ...iconOptions, iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-yellow.png' });
+            redIcon = L.icon({ ...iconOptions, iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png' });
+            greyIcon = L.icon({ ...iconOptions, iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-grey.png' });
+            blueIcon = L.icon({ ...iconOptions, iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png' });
+        }
+
         function handleFilterModeChange() {
             const filterMode = filterModeSelect.value;
             const isPathLossMode = filterMode === 'pathLoss';
-            const filterControlsGrid = document.getElementById('filter-controls-grid');
-
+            const filterModeContainer = document.getElementById('filter-mode-container');
+            
             pathLossContainer.classList.toggle('hidden', !isPathLossMode);
 
-            if (isPathLossMode) {
-                filterControlsGrid.classList.add('grid-cols-2');
-                filterControlsGrid.classList.remove('grid-cols-1');
+            if(isPathLossMode) {
+                filterModeContainer.parentElement.classList.add('grid-cols-2');
+                filterModeContainer.parentElement.classList.remove('grid-cols-1');
+                filterModeContainer.classList.remove('col-span-2');
             } else {
-                filterControlsGrid.classList.remove('grid-cols-2');
-                filterControlsGrid.classList.add('grid-cols-1');
+                filterModeContainer.parentElement.classList.remove('grid-cols-2');
+                filterModeContainer.parentElement.classList.add('grid-cols-1');
+                filterModeContainer.classList.add('col-span-2');
             }
-
+            
             updateFilteredView(repeaterData, getCurrentCoords());
+        }
+
+        function updatePathLossDisplay() {
+            const displayElement = document.getElementById('calculated-path-loss-display');
+            if (filterModeSelect.value === 'pathLoss') {
+                const maxLoss = calculateMaxPathLoss();
+                displayElement.textContent = maxLoss.toFixed(1);
+            }
         }
 
         function requestUserGeolocation() {
@@ -591,11 +649,26 @@
             }
             return `${seconds}s`;
         }
+
+        function calculateMaxPathLoss() {
+            const txPowerWatts = parseFloat(txPowerInput.value) || 0;
+            const txGain = parseFloat(txGainInput.value) || 0;
+            const rxGain = parseFloat(rxGainInput.value) || 0;
+            const rxThresholdMicrovolts = parseFloat(rxThresholdInput.value) || 0.5;
+
+            if (txPowerWatts <= 0 || rxThresholdMicrovolts <= 0) return 0;
+
+            const power_dBm = 10 * Math.log10(txPowerWatts * 1000);
+            const threshold_volts = rxThresholdMicrovolts / 1e6;
+            // Correct formula for V to dBm in a 50 ohm system: P(dBm) = 10 * log10((V^2 / 50) * 1000)
+            const threshold_dBm = 10 * Math.log10( (Math.pow(threshold_volts, 2) / 50) * 1000 );
+            
+            return power_dBm + txGain + rxGain - threshold_dBm;
+        }
         
         function getFilteredData(allRepeaters) {
             const searchTerm = repeaterSearchInput.value.toLowerCase();
             const filterMode = filterModeSelect.value;
-            const maxPathLoss = parseFloat(maxPathLossInput.value);
             
             let filtered = [...allRepeaters];
 
@@ -614,10 +687,11 @@
 
             const analysisHasRun = allRepeaters.some(r => r.pathLoss !== undefined || r.isVisible !== undefined);
             if (!analysisHasRun && filterMode !== 'none') {
-                return []; // Don't show any if analysis is required but not run
+                return []; 
             }
 
-            if (filterMode === 'pathLoss' && !isNaN(maxPathLoss)) {
+            if (filterMode === 'pathLoss') {
+                const maxPathLoss = calculateMaxPathLoss();
                 filtered = filtered.filter(r => typeof r.pathLoss === 'number' && r.pathLoss <= maxPathLoss);
             } else if (filterMode === 'los') {
                 filtered = filtered.filter(r => r.isVisible);
@@ -630,6 +704,9 @@
             const filteredData = getFilteredData(allRepeaters);
             const filterMode = filterModeSelect.value;
             const analysisHasRun = allRepeaters.some(r => r.pathLoss !== undefined || r.isVisible !== undefined);
+
+            const maxLossThreshold = calculateMaxPathLoss();
+            const greenThreshold = maxLossThreshold - 10;
 
             filteredData.sort((a, b) => {
                 if (filterMode === 'pathLoss' && analysisHasRun) {
@@ -651,13 +728,26 @@
                 const distance = getDistance(userCoords, repeater).toFixed(1);
                 
                 let pathLossHTML = '';
+                let markerColor = 'grey';
+
                 if (typeof repeater.pathLoss === 'number') {
-                    const lossColor = repeater.pathLoss > 160 ? 'text-red-500' : repeater.pathLoss > 140 ? 'text-yellow-600' : 'text-green-600';
-                    pathLossHTML = `<p class="text-sm font-medium ${lossColor}">Loss: ${repeater.pathLoss.toFixed(1)} dB</p>`;
+                    if (repeater.pathLoss <= greenThreshold) {
+                        pathLossHTML = `<p class="text-sm font-medium text-green-600">Loss: ${repeater.pathLoss.toFixed(1)} dB</p>`;
+                        markerColor = 'green';
+                    } else if (repeater.pathLoss <= maxLossThreshold) {
+                        pathLossHTML = `<p class="text-sm font-medium text-yellow-600">Loss: ${repeater.pathLoss.toFixed(1)} dB</p>`;
+                        markerColor = 'yellow';
+                    } else {
+                        // This case is technically filtered out, but we'll leave it for robustness
+                        pathLossHTML = `<p class="text-sm font-medium text-red-500">Loss: ${repeater.pathLoss.toFixed(1)} dB</p>`;
+                        markerColor = 'red';
+                    }
                 } else if (repeater.isVisible === true) {
                     pathLossHTML = `<p class="text-sm font-medium text-green-600">Clear LOS</p>`;
+                    markerColor = 'green';
                 } else if (repeater.isVisible === false) {
                     pathLossHTML = `<p class="text-sm font-medium text-red-500">Obstructed</p>`;
+                    markerColor = 'red';
                 }
 
                 const item = document.createElement('div');
@@ -698,12 +788,20 @@
                 });
 
                 repeaterListDiv.appendChild(item);
-                addRepeaterMarkerToMap(repeater);
+                addRepeaterMarkerToMap(repeater, markerColor);
             });
         }
         
-        function addRepeaterMarkerToMap(repeater) {
-            const marker = L.marker([repeater.lat, repeater.lon], { draggable: true })
+        function addRepeaterMarkerToMap(repeater, color) {
+            let icon;
+            switch(color) {
+                case 'green': icon = greenIcon; break;
+                case 'yellow': icon = yellowIcon; break;
+                case 'red': icon = redIcon; break;
+                default: icon = greyIcon;
+            }
+
+            const marker = L.marker([repeater.lat, repeater.lon], { icon: icon, draggable: true })
                 .bindPopup(`<b>${repeater.callsign}</b><br>${repeater.location}<br>${repeater.outputFreq} MHz<br><button class="mt-2 p-1 bg-indigo-500 text-white rounded text-xs" onclick='analyzePathFromPopup(${JSON.stringify(repeater)})'>Check Path</button>`);
             
             marker.on('dragend', (event) => {
