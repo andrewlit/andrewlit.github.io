@@ -93,6 +93,10 @@
                         <input id="curvature-checkbox" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" checked>
                         <label for="curvature-checkbox" class="ml-2 text-sm font-medium text-gray-700">Earth Curvature</label>
                     </div>
+                    <div class="flex items-center">
+                        <input id="surface-model-checkbox" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                        <label for="surface-model-checkbox" class="ml-2 text-sm font-medium text-gray-700">Use Surface Model (Canada)</label>
+                    </div>
                     <div class="flex space-x-2">
                          <button id="resetLocationBtn" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300">Reset to My Location</button>
                          <button id="addMarkerBtn" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition duration-300">Place Custom Marker</button>
@@ -260,13 +264,14 @@
         const K_FACTOR = 4 / 3;
         const EARTH_RADIUS_METERS = 6378137.0; 
         const EFFECTIVE_EARTH_RADIUS = EARTH_RADIUS_METERS * K_FACTOR;
+        const TERRAIN_ABSORPTION_FACTOR_DB_PER_KM = 0.5;
         
         // --- DOM Element References ---
         let latInput, lonInput, userHeightInput, repeaterHeightInput, gpxUpload,
             addMarkerBtn, resetLocationBtn, customMarkerInputContainer, customMarkerNameInput,
             customMarkerFreqInput, filterStatusDiv, repeaterListDiv, customListDiv,
             losResultContainer, selectedRepeaterInfoDiv, pathLossResultContainer,
-            profileChartCanvas, repeaterSearchInput, curvatureCheckbox,
+            profileChartCanvas, repeaterSearchInput, curvatureCheckbox, surfaceModelCheckbox,
             runBatchAnalysisBtn, filterModeSelect, pathLossContainer,
             txPowerInput, txGainInput, rxGainInput, rxThresholdInput;
 
@@ -303,6 +308,7 @@
             profileChartCanvas = document.getElementById('profileChart');
             repeaterSearchInput = document.getElementById('repeater-search');
             curvatureCheckbox = document.getElementById('curvature-checkbox');
+            surfaceModelCheckbox = document.getElementById('surface-model-checkbox');
             runBatchAnalysisBtn = document.getElementById('run-batch-analysis');
             filterModeSelect = document.getElementById('filter-mode-select');
             pathLossContainer = document.getElementById('path-loss-container');
@@ -329,7 +335,7 @@
             runBatchAnalysisBtn.addEventListener('click', runBatchAnalysis);
             filterModeSelect.addEventListener('change', handleFilterModeChange);
 
-            const reanalyzeInputs = [userHeightInput, curvatureCheckbox];
+            const reanalyzeInputs = [userHeightInput, curvatureCheckbox, surfaceModelCheckbox];
             reanalyzeInputs.forEach(input => {
                 input.addEventListener('input', () => { 
                     if (lastAnalyzedTarget) analyzePath(lastAnalyzedTarget, getCurrentCoords()); 
@@ -630,6 +636,32 @@
                 if (!isVisible) {
                     const deygoutResult = calculateDeygoutDiffractionLoss(elevationProfile, userAntennaHeight, repeaterAntennaHeight, frequencyMHz);
                     totalPathLoss += deygoutResult.totalLoss;
+
+                    const totalPathDistanceMeters = distanceKm * 1000;
+                    const startElevation = elevationProfile[0].elevation + userAntennaHeight;
+                    const endElevation = elevationProfile[elevationProfile.length - 1].elevation + repeaterAntennaHeight;
+                    const applyCurvature = document.getElementById('curvature-checkbox').checked;
+                    let obstructedDistanceMeters = 0;
+                    for (let i = 1; i < elevationProfile.length; i++) {
+                        const p1 = elevationProfile[i-1];
+                        const p2 = elevationProfile[i];
+                        const fraction = (i - 0.5) / (elevationProfile.length - 1);
+                        const terrainElevationMidpoint = (p1.elevation + p2.elevation) / 2;
+                        const straightLosHeight = startElevation + fraction * (endElevation - startElevation);
+                        
+                        let effectiveLosHeight = straightLosHeight;
+                        if (applyCurvature) {
+                            const d1 = totalPathDistanceMeters * fraction;
+                            const d2 = totalPathDistanceMeters - d1;
+                            const curvatureDrop = (d1 * d2) / (2 * EFFECTIVE_EARTH_RADIUS);
+                            effectiveLosHeight -= curvatureDrop;
+                        }
+                        if (terrainElevationMidpoint > effectiveLosHeight) {
+                            obstructedDistanceMeters += getDistance(p1.location, p2.location) * 1000;
+                        }
+                    }
+                    const terrainAbsorptionLoss = (obstructedDistanceMeters / 1000) * TERRAIN_ABSORPTION_FACTOR_DB_PER_KM;
+                    totalPathLoss += terrainAbsorptionLoss;
                 }
                 
                 return { pathLoss: totalPathLoss, isVisible: isVisible };
@@ -738,7 +770,6 @@
                         pathLossHTML = `<p class="text-sm font-medium text-yellow-600">Loss: ${repeater.pathLoss.toFixed(1)} dB</p>`;
                         markerColor = 'yellow';
                     } else {
-                        // This case is technically filtered out, but we'll leave it for robustness
                         pathLossHTML = `<p class="text-sm font-medium text-red-500">Loss: ${repeater.pathLoss.toFixed(1)} dB</p>`;
                         markerColor = 'red';
                     }
@@ -924,17 +955,44 @@
                 const fspl = calculateFreeSpacePathLoss(distanceKm, frequencyMHz);
                 let totalPathLoss = fspl;
                 let diffractionLoss = 0;
+                let terrainAbsorptionLoss = 0;
 
                 if (!isVisible) {
                     const deygoutResult = calculateDeygoutDiffractionLoss(elevationProfile, userAntennaHeight, repeaterAntennaHeight, frequencyMHz);
                     diffractionLoss = deygoutResult.totalLoss;
                     allObstructions = deygoutResult.obstructions;
                     totalPathLoss += diffractionLoss;
+
+                    const totalPathDistanceMeters = distanceKm * 1000;
+                    const startElevation = elevationProfile[0].elevation + userAntennaHeight;
+                    const endElevation = elevationProfile[elevationProfile.length - 1].elevation + repeaterAntennaHeight;
+                    const applyCurvature = document.getElementById('curvature-checkbox').checked;
+                    let obstructedDistanceMeters = 0;
+                    for (let i = 1; i < elevationProfile.length; i++) {
+                        const p1 = elevationProfile[i-1];
+                        const p2 = elevationProfile[i];
+                        const fraction = (i - 0.5) / (elevationProfile.length - 1);
+                        const terrainElevationMidpoint = (p1.elevation + p2.elevation) / 2;
+                        const straightLosHeight = startElevation + fraction * (endElevation - startElevation);
+                        
+                        let effectiveLosHeight = straightLosHeight;
+                        if (applyCurvature) {
+                            const d1 = totalPathDistanceMeters * fraction;
+                            const d2 = totalPathDistanceMeters - d1;
+                            const curvatureDrop = (d1 * d2) / (2 * EFFECTIVE_EARTH_RADIUS);
+                            effectiveLosHeight -= curvatureDrop;
+                        }
+                        if (terrainElevationMidpoint > effectiveLosHeight) {
+                            obstructedDistanceMeters += getDistance(p1.location, p2.location) * 1000;
+                        }
+                    }
+                    terrainAbsorptionLoss = (obstructedDistanceMeters / 1000) * TERRAIN_ABSORPTION_FACTOR_DB_PER_KM;
+                    totalPathLoss += terrainAbsorptionLoss;
                 } else {
                     allObstructions = [];
                 }
 
-                displayPathLossResult(totalPathLoss, fspl, diffractionLoss, isVisible, target);
+                displayPathLossResult(totalPathLoss, fspl, diffractionLoss, terrainAbsorptionLoss, isVisible, target);
 
                 drawProfileChart(elevationProfile, userAntennaHeight, repeaterAntennaHeight, isVisible, allObstructions);
                 drawPathOnMap(initialPoints, isVisible);
@@ -970,8 +1028,9 @@
             let apiUrl;
             let isNrCan = false;
             if (isCanadianPath) {
+                const model = surfaceModelCheckbox.checked ? 'cdsm' : 'cdem';
                 const path = `LINESTRING(${start.lon} ${start.lat}, ${end.lon} ${end.lat})`;
-                apiUrl = `https://geogratis.gc.ca/services/elevation/cdem/profile?path=${encodeURIComponent(path)}&steps=${points.length - 2}`;
+                apiUrl = `https://geogratis.gc.ca/services/elevation/${model}/profile?path=${encodeURIComponent(path)}&steps=${points.length - 2}`;
                 isNrCan = true;
             } else {
                 const latitudes = points.map(p => p.lat.toFixed(5)).join(',');
@@ -1219,7 +1278,7 @@
             losResultContainer.innerHTML = resultHTML;
         }
 
-        function displayPathLossResult(totalPathLoss, fspl, diffractionLoss, isVisible, target) {
+        function displayPathLossResult(totalPathLoss, fspl, diffractionLoss, terrainAbsorptionLoss, isVisible, target) {
             let resultHTML;
             if (isVisible) {
                 resultHTML = `<div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4">
@@ -1233,9 +1292,10 @@
                                     <p>Estimated total loss to ${target.callsign}: <span class="font-bold text-2xl">${totalPathLoss.toFixed(2)} dB</span></p>
                                     <div class="mt-2 text-sm">
                                         <p>Free-Space Path Loss: ${fspl.toFixed(2)} dB</p>
-                                        <p>+ Total Diffraction Loss: ${diffractionLoss.toFixed(2)} dB</p>
+                                        <p>+ Diffraction Loss: ${diffractionLoss.toFixed(2)} dB</p>
+                                        <p>+ Terrain Absorption: ${terrainAbsorptionLoss.toFixed(2)} dB</p>
                                     </div>
-                                    <p class="text-xs mt-2">Note: Diffraction loss is estimated using the Deygout method for multiple terrain obstructions. This does not account for other real-world factors.</p>
+                                    <p class="text-xs mt-2">Note: This does not account for other real-world factors like foliage or buildings.</p>
                                   </div>`;
             }
             pathLossResultContainer.innerHTML = resultHTML;
