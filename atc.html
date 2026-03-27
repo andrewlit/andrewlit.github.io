@@ -32,7 +32,7 @@
         <div id="atc-status" class="status">Disconnected</div>
         <h3>YYZ South Tower</h3>
         <p>Direct Live Frequency</p>
-        <audio id="atc" src="https://d.liveatc.net/cyyz1_twr_south" crossorigin="anonymous"></audio>
+        <audio id="atc" src="https://d.liveatc.net/cyyz1_twr_south" crossorigin="anonymous" preload="none"></audio>
         <button onclick="toggle('atc')">Toggle Radio</button>
         <input type="range" min="0" max="1" step="0.01" value="0.8" oninput="vol('atc', this.value)">
     </div>
@@ -41,7 +41,7 @@
         <div id="lofi-status" class="status">Disconnected</div>
         <h3>Lofi Atmosphere</h3>
         <p>24/7 Chill Beats</p>
-        <audio id="lofi" src="https://lofi.stream.laut.fm/lofi" crossorigin="anonymous"></audio>
+        <audio id="lofi" src="https://lofi.stream.laut.fm/lofi" crossorigin="anonymous" preload="none"></audio>
         <button onclick="toggle('lofi')">Toggle Music</button>
         <input type="range" min="0" max="1" step="0.01" value="0.4" oninput="vol('lofi', this.value)">
     </div>
@@ -50,19 +50,50 @@
 </div>
 
 <script>
-    function toggle(id) {
+    function updateMediaSession() {
+        if ('mediaSession' in navigator) {
+            const isAtcActive = !document.getElementById('atc').paused;
+            const isLofiActive = !document.getElementById('lofi').paused;
+
+            let title = "YYZ x Lofi Mixer";
+            let artist = "Station Standby";
+
+            if (isAtcActive && isLofiActive) { artist = "Mixing Radio & Beats"; }
+            else if (isAtcActive) { title = "YYZ South Tower"; artist = "Live ATC"; }
+            else if (isLofiActive) { title = "Lofi Atmosphere"; artist = "Chill Beats"; }
+
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: title,
+                artist: artist,
+                album: "Live Stream",
+                artwork: [{ src: 'https://via.placeholder.com/512', sizes: '512x512', type: 'image/png' }]
+            });
+
+            navigator.mediaSession.setActionHandler('play', () => { /* Play logic could go here */ });
+            navigator.mediaSession.setActionHandler('pause', () => { muteAll(); });
+        }
+    }
+
+    async function toggle(id) {
         const audio = document.getElementById(id);
         const status = document.getElementById(id + '-status');
         
         if (audio.paused) {
-            audio.play().catch(e => console.log("User interaction required"));
-            status.innerText = "● Live Now";
-            status.classList.add('active');
+            try {
+                // Reloading forces a fresh buffer connection to prevent background staling
+                audio.load();
+                await audio.play();
+                status.innerText = "● Live Now";
+                status.classList.add('active');
+            } catch (e) {
+                console.error("Playback failed:", e);
+            }
         } else {
             audio.pause();
             status.innerText = "Disconnected";
             status.classList.remove('active');
         }
+        updateMediaSession();
     }
 
     function vol(id, val) {
@@ -73,9 +104,11 @@
         ['atc', 'lofi'].forEach(id => {
             const a = document.getElementById(id);
             a.pause();
-            document.getElementById(id + '-status').innerText = "Disconnected";
-            document.getElementById(id + '-status').classList.remove('active');
+            const status = document.getElementById(id + '-status');
+            status.innerText = "Disconnected";
+            status.classList.remove('active');
         });
+        updateMediaSession();
     }
 </script>
 
