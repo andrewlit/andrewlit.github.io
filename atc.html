@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YYZ x LOFI</title>
+    <style>
+        body { background: #121212; color: #fff; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .box { background: #1e1e1e; padding: 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 80%; max-width: 400px; }
+        .control { margin-bottom: 30px; }
+        button { background: #3498db; border: none; color: white; padding: 12px 24px; border-radius: 10px; font-weight: bold; width: 100%; margin-bottom: 10px; cursor: pointer; }
+        input[type=range] { width: 100%; accent-color: #3498db; }
+        h3 { margin-top: 0; color: #aaa; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <div class="control">
+        <h3>Toronto Pearson (YYZ)</h3>
+        <audio id="atc" src="https://s1-fmt2.liveatc.net/cyyz2_twr" crossorigin="anonymous"></audio>
+        <button onclick="playPause('atc')">Start / Stop ATC</button>
+        <input type="range" min="0" max="1" step="0.01" value="0.8" oninput="vol('atc', this.value)">
+    </div>
+
+    <div class="control">
+        <h3>Lofi Radio</h3>
+        <audio id="lofi" src="https://lofi.stream.laut.fm/lofi" crossorigin="anonymous"></audio>
+        <button onclick="playPause('lofi')">Start / Stop Lofi</button>
+        <input type="range" min="0" max="1" step="0.01" value="0.5" oninput="vol('lofi', this.value)">
+    </div>
+</div>
+
+<script>
+    function playPause(id) {
+        const a = document.getElementById(id);
+        if (a.paused) { a.play(); } else { a.pause(); }
+    }
+    function vol(id, val) {
+        document.getElementById(id).volume = val;
+    }
+</script>
+
+</body>
+</html>
