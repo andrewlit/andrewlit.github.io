@@ -3,6 +3,278 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YYZ x Lofi</title>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --primary: #38bdf8; --live: #4ade80; --danger: #f87171; }
+        body { background: var(--bg); color: #f8fafc; font-family: -apple-system, system-ui, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        .box { background: var(--card); padding: 2rem; border-radius: 2rem; text-align: center; width: 85%; max-width: 380px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+        
+        .status { font-size: 11px; font-weight: 800; text-transform: uppercase; padding: 4px 10px; border-radius: 20px; background: #334155; color: #94a3b8; transition: all 0.4s ease; display: inline-block; margin-bottom: 12px; border: 1px solid transparent; }
+        .active { background: rgba(74, 222, 128, 0.1); color: var(--live); border-color: var(--live); box-shadow: 0 0 15px rgba(74, 222, 128, 0.2); }
+
+        .control { margin-bottom: 2.5rem; }
+        h3 { margin: 0; font-size: 1.25rem; letter-spacing: -0.025em; }
+        p { color: #94a3b8; font-size: 0.85rem; margin: 4px 0 16px 0; }
+        
+        button { background: var(--primary); border: none; color: #0f172a; padding: 14px; border-radius: 12px; font-weight: 700; width: 100%; cursor: pointer; transition: 0.2s; }
+        button:active { transform: scale(0.96); opacity: 0.9; }
+        
+        input[type=range] { width: 100%; margin-top: 18px; height: 6px; border-radius: 5px; appearance: none; background: #334155; outline: none; }
+        input[type=range]::-webkit-slider-thumb { appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--primary); cursor: pointer; }
+
+        .mute-all { background: transparent; color: var(--danger); border: 1px solid var(--danger); margin-top: 10px; padding: 10px; }
+
+        select {
+            background: #334155;
+            color: #f8fafc;
+            border: 1px solid #475569;
+            padding: 8px 12px;
+            border-radius: 8px;
+            width: 100%;
+            margin-bottom: 15px;
+            outline: none;
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        select:focus { border-color: var(--primary); }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <div class="control">
+        <div id="atc-status" class="status">Disconnected</div>
+        <h3>Toronto Pearson (YYZ)</h3>
+        
+        <select id="atc-source" onchange="changeAtcSource()">
+            <option value="https://d.liveatc.net/cyyz1_twr_south">South Tower</option>
+            <option value="https://d.liveatc.net/cyyz1_twr_north">North Tower</option>
+            <option value="https://d.liveatc.net/cyyz2_gnd">Ground Control</option>
+            <option value="https://d.liveatc.net/cyyz3_app">Arrivals / Terminal</option>
+        </select>
+
+        <audio id="atc" src="https://d.liveatc.net/cyyz1_twr_south" crossorigin="anonymous" preload="none"></audio>
+        <button onclick="toggle('atc')">Toggle Radio</button>
+        <input type="range" id="atc-vol" min="0" max="1" step="0.01" value="0.8" oninput="vol('atc', this.value)">
+    </div>
+
+    <div class="control">
+        <div id="lofi-status" class="status">Disconnected</div>
+        <h3>Lofi Atmosphere</h3>
+        
+        <select id="lofi-source" onchange="changeLofiSource()">
+            <option value="lofigirl">Lofi Girl (YouTube)</option>
+            <option value="lautfm">Chill Beats (Laut.fm)</option>
+        </select>
+
+        <audio id="lofi" src="https://lofi.stream.laut.fm/lofi" crossorigin="anonymous" preload="none"></audio>
+        <div id="yt-player" style="position: absolute; width: 0; height: 0; overflow: hidden;"></div>
+
+        <button onclick="toggle('lofi')">Toggle Music</button>
+        <input type="range" id="lofi-vol" min="0" max="1" step="0.01" value="0.4" oninput="vol('lofi', this.value)">
+    </div>
+
+    <button class="mute-all" onclick="muteAll()">Mute All Audio</button>
+</div>
+
+<script src="https://www.youtube.com/iframe_api"></script>
+
+<script>
+    let ytPlayer;
+    let ytReady = false;
+
+    // --- Local Storage Loading ---
+    function loadSettings() {
+        if (localStorage.getItem('atcSource')) {
+            const src = localStorage.getItem('atcSource');
+            document.getElementById('atc-source').value = src;
+            document.getElementById('atc').src = src;
+        }
+        if (localStorage.getItem('lofiSource')) {
+            document.getElementById('lofi-source').value = localStorage.getItem('lofiSource');
+        }
+        if (localStorage.getItem('atcVol')) {
+            const v = localStorage.getItem('atcVol');
+            document.getElementById('atc-vol').value = v;
+            document.getElementById('atc').volume = v;
+        }
+        if (localStorage.getItem('lofiVol')) {
+            const v = localStorage.getItem('lofiVol');
+            document.getElementById('lofi-vol').value = v;
+            document.getElementById('lofi').volume = v;
+        }
+    }
+    
+    // Run the load function immediately when the page parses this script
+    loadSettings();
+
+    function onYouTubeIframeAPIReady() {
+        ytPlayer = new YT.Player('yt-player', {
+            height: '0',
+            width: '0',
+            videoId: 'jfKfPfyJRdk',
+            playerVars: { 'autoplay': 0, 'controls': 0 },
+            events: {
+                'onReady': () => { 
+                    ytReady = true; 
+                    // Make sure YouTube loads with the saved volume or default to 40%
+                    const savedVol = localStorage.getItem('lofiVol') ? localStorage.getItem('lofiVol') * 100 : 40;
+                    ytPlayer.setVolume(savedVol);
+                }
+            }
+        });
+    }
+
+    function updateMediaSession() {
+        if ('mediaSession' in navigator) {
+            const isAtcActive = !document.getElementById('atc').paused;
+            const lofiSource = document.getElementById('lofi-source').value;
+            
+            let isLofiActive = false;
+            if (lofiSource === 'lofigirl' && ytReady) {
+                isLofiActive = (ytPlayer.getPlayerState() === 1);
+            } else {
+                isLofiActive = !document.getElementById('lofi').paused;
+            }
+
+            const atcSelect = document.getElementById('atc-source');
+            const activeAtcName = atcSelect.options[atcSelect.selectedIndex].text;
+
+            let title = "YYZ x Lofi Mixer";
+            let artist = "Station Standby";
+
+            if (isAtcActive && isLofiActive) { 
+                title = `Mixing ${activeAtcName} & Beats`;
+                artist = "Live Stream"; 
+            }
+            else if (isAtcActive) { 
+                title = activeAtcName; 
+                artist = "Live ATC"; 
+            }
+            else if (isLofiActive) { 
+                title = "Lofi Atmosphere"; 
+                artist = "Chill Beats"; 
+            }
+
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: title,
+                artist: artist,
+                album: "Live Stream",
+                artwork: [{ src: 'https://via.placeholder.com/512', sizes: '512x512', type: 'image/png' }]
+            });
+
+            navigator.mediaSession.setActionHandler('pause', () => { muteAll(); });
+        }
+    }
+
+    function changeAtcSource() {
+        const audio = document.getElementById('atc');
+        const status = document.getElementById('atc-status');
+        const sourceUrl = document.getElementById('atc-source').value;
+
+        // Save to local storage
+        localStorage.setItem('atcSource', sourceUrl);
+
+        audio.pause();
+        audio.src = sourceUrl;
+        
+        status.innerText = "Disconnected";
+        status.classList.remove('active');
+        updateMediaSession();
+    }
+
+    function changeLofiSource() {
+        const audio = document.getElementById('lofi');
+        const status = document.getElementById('lofi-status');
+        const sourceUrl = document.getElementById('lofi-source').value;
+        
+        // Save to local storage
+        localStorage.setItem('lofiSource', sourceUrl);
+
+        audio.pause();
+        if (ytReady) ytPlayer.pauseVideo();
+        
+        status.innerText = "Disconnected";
+        status.classList.remove('active');
+        updateMediaSession();
+    }
+
+    async function toggle(id) {
+        const status = document.getElementById(id + '-status');
+        
+        if (id === 'lofi') {
+            const source = document.getElementById('lofi-source').value;
+            if (source === 'lofigirl') {
+                if (!ytReady) return console.log("YT Player not ready");
+                
+                const state = ytPlayer.getPlayerState();
+                if (state === 1) { 
+                    ytPlayer.pauseVideo();
+                    status.innerText = "Disconnected";
+                    status.classList.remove('active');
+                } else {
+                    ytPlayer.playVideo();
+                    status.innerText = "● Live Now";
+                    status.classList.add('active');
+                }
+                updateMediaSession();
+                return; 
+            }
+        }
+
+        const audio = document.getElementById(id);
+        if (audio.paused) {
+            try {
+                audio.load();
+                await audio.play();
+                status.innerText = "● Live Now";
+                status.classList.add('active');
+            } catch (e) {
+                console.error("Playback failed:", e);
+            }
+        } else {
+            audio.pause();
+            status.innerText = "Disconnected";
+            status.classList.remove('active');
+        }
+        updateMediaSession();
+    }
+
+    function vol(id, val) {
+        // Save volume to local storage whenever a slider is moved
+        localStorage.setItem(id + 'Vol', val);
+
+        if (id === 'lofi') {
+            const source = document.getElementById('lofi-source').value;
+            if (source === 'lofigirl' && ytReady) {
+                ytPlayer.setVolume(val * 100);
+            }
+        }
+        document.getElementById(id).volume = val;
+    }
+
+    function muteAll() {
+        document.getElementById('atc').pause();
+        document.getElementById('atc-status').innerText = "Disconnected";
+        document.getElementById('atc-status').classList.remove('active');
+
+        document.getElementById('lofi').pause();
+        if (ytReady) ytPlayer.pauseVideo();
+        
+        document.getElementById('lofi-status').innerText = "Disconnected";
+        document.getElementById('lofi-status').classList.remove('active');
+
+        updateMediaSession();
+    }
+</script>
+
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YYZ South x Lofi</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --primary: #38bdf8; --live: #4ade80; --danger: #f87171; }
