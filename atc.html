@@ -6,7 +6,7 @@
     <title>YYZ x Lofi</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --primary: #38bdf8; --live: #4ade80; --danger: #f87171; }
-        body { background: var(--bg); color: #f8fafc; font-family: -apple-system, system-ui, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        body { background: var(--bg); color: #f8fafc; font-family: -apple-system, system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
         .box { background: var(--card); padding: 2rem; border-radius: 2rem; text-align: center; width: 85%; max-width: 380px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
         
         .status { font-size: 11px; font-weight: 800; text-transform: uppercase; padding: 4px 10px; border-radius: 20px; background: #334155; color: #94a3b8; transition: all 0.4s ease; display: inline-block; margin-bottom: 12px; border: 1px solid transparent; }
@@ -65,10 +65,13 @@
         
         <select id="lofi-source" onchange="changeLofiSource()">
             <option value="lofigirl">Lofi Girl (YouTube)</option>
-            <option value="lautfm">Chill Beats (Laut.fm)</option>
+            <option value="https://play.streamafrica.net/lofiradio">Lofi Radio (24/7 Lofi)</option>
+            <option value="https://radio.plaza.one/mp3">Nightwave Plaza (Vaporwave)</option>
+            <option value="https://ice1.somafm.com/groovesalad-128-mp3">SomaFM: Groove Salad (Chillout)</option>
+            <option value="https://lofi.stream.laut.fm/lofi">Chill Beats (Laut.fm)</option>
         </select>
 
-        <audio id="lofi" src="https://lofi.stream.laut.fm/lofi" crossorigin="anonymous" preload="none"></audio>
+        <audio id="lofi" src="" crossorigin="anonymous" preload="none"></audio>
         <div id="yt-player" style="position: absolute; width: 0; height: 0; overflow: hidden;"></div>
 
         <button onclick="toggle('lofi')">Toggle Music</button>
@@ -84,7 +87,6 @@
     let ytPlayer;
     let ytReady = false;
 
-    // --- Local Storage Loading ---
     function loadSettings() {
         if (localStorage.getItem('atcSource')) {
             const src = localStorage.getItem('atcSource');
@@ -92,7 +94,12 @@
             document.getElementById('atc').src = src;
         }
         if (localStorage.getItem('lofiSource')) {
-            document.getElementById('lofi-source').value = localStorage.getItem('lofiSource');
+            const src = localStorage.getItem('lofiSource');
+            document.getElementById('lofi-source').value = src;
+            // Only update HTML audio tag if it's NOT the YouTube link
+            if (src !== 'lofigirl') {
+                document.getElementById('lofi').src = src;
+            }
         }
         if (localStorage.getItem('atcVol')) {
             const v = localStorage.getItem('atcVol');
@@ -106,7 +113,6 @@
         }
     }
     
-    // Run the load function immediately when the page parses this script
     loadSettings();
 
     function onYouTubeIframeAPIReady() {
@@ -118,7 +124,6 @@
             events: {
                 'onReady': () => { 
                     ytReady = true; 
-                    // Make sure YouTube loads with the saved volume or default to 40%
                     const savedVol = localStorage.getItem('lofiVol') ? localStorage.getItem('lofiVol') * 100 : 40;
                     ytPlayer.setVolume(savedVol);
                 }
@@ -153,8 +158,9 @@
                 artist = "Live ATC"; 
             }
             else if (isLofiActive) { 
-                title = "Lofi Atmosphere"; 
-                artist = "Chill Beats"; 
+                const lofiSelect = document.getElementById('lofi-source');
+                title = lofiSelect.options[lofiSelect.selectedIndex].text; 
+                artist = "Streaming Audio"; 
             }
 
             navigator.mediaSession.metadata = new MediaMetadata({
@@ -173,7 +179,6 @@
         const status = document.getElementById('atc-status');
         const sourceUrl = document.getElementById('atc-source').value;
 
-        // Save to local storage
         localStorage.setItem('atcSource', sourceUrl);
 
         audio.pause();
@@ -189,12 +194,16 @@
         const status = document.getElementById('lofi-status');
         const sourceUrl = document.getElementById('lofi-source').value;
         
-        // Save to local storage
         localStorage.setItem('lofiSource', sourceUrl);
 
         audio.pause();
         if (ytReady) ytPlayer.pauseVideo();
         
+        // If it's a direct HTML link, update the source
+        if (sourceUrl !== 'lofigirl') {
+            audio.src = sourceUrl;
+        }
+
         status.innerText = "Disconnected";
         status.classList.remove('active');
         updateMediaSession();
@@ -226,6 +235,10 @@
         const audio = document.getElementById(id);
         if (audio.paused) {
             try {
+                // For non-YouTube streams, make sure we have the correct URL loaded
+                if (id === 'lofi' && !audio.src) {
+                     audio.src = document.getElementById('lofi-source').value;
+                }
                 audio.load();
                 await audio.play();
                 status.innerText = "● Live Now";
@@ -242,7 +255,6 @@
     }
 
     function vol(id, val) {
-        // Save volume to local storage whenever a slider is moved
         localStorage.setItem(id + 'Vol', val);
 
         if (id === 'lofi') {
